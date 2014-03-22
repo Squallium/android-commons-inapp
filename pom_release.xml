@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.squallium.androidcommons.inapp</groupId>
+		<artifactId>parent</artifactId>
+		<version>1.0.1</version>
+		<relativePath>pom.xml</relativePath>
+	</parent>
+
+	<artifactId>release</artifactId>
+	<version>1.0.0</version>
+	<packaging>pom</packaging>
+
+	<build>
+		<!-- Definimos el nombre del apk final -->
+		<finalName>${project.artifactId}-${project.version}-${store}</finalName>
+
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jarsigner-plugin</artifactId>
+				<version>1.2</version>
+				<executions>
+					<execution>
+						<id>signing</id>
+						<goals>
+							<goal>sign</goal>
+						</goals>
+						<phase>package</phase>
+						<inherited>true</inherited>
+						<configuration>
+							<archiveDirectory></archiveDirectory>
+							<includes>
+								<include>target/*.apk</include>
+							</includes>
+							<keystore>${sign.keystore}</keystore>
+							<storepass>${sign.storepass}</storepass>
+							<keypass>${sign.keypass}</keypass>
+							<alias>${sign.alias}</alias>
+							<verbose>true</verbose>
+							<arguments>
+								<argument>-sigalg</argument>
+								<argument>MD5withRSA</argument>
+								<argument>-digestalg</argument>
+								<argument>SHA1</argument>
+							</arguments>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.jayway.maven.plugins.android.generation2</groupId>
+				<artifactId>android-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<androidManifestFile>${project.basedir}/${storeManifestPath}AndroidManifest.xml</androidManifestFile>
+					<resourceDirectory>${project.basedir}/${storeResourcePath}res</resourceDirectory>
+					<sign>
+						<debug>false</debug>
+					</sign>
+					<proguard>
+						<skip>false</skip>
+					</proguard>
+					<zipalign>
+						<skip>false</skip>
+						<verbose>true</verbose>
+						<inputApk>${project.build.directory}/${project.artifactId}-${project.version}-${store}.apk</inputApk>
+						<outputApk>${project.build.directory}/${project.artifactId}-${project.version}-${store}.apk</outputApk>
+					</zipalign>
+				</configuration>
+				<executions>
+					<execution>
+					<id>update-manifest</id>
+					<goals>
+						<goal>manifest-update</goal>
+					</goals>
+					<configuration>
+						<manifest>
+							<debuggable>false</debuggable>
+						</manifest>
+					</configuration>
+					</execution>
+					<execution>
+						<id>alignApk</id>
+						<phase>package</phase>
+						<goals>
+							<goal>zipalign</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.8</version>
+				<configuration>
+					<artifacts>
+						<artifact>
+							<file>${project.build.directory}/${project.artifactId}-${project.version}-${store}.apk</file>
+							<type>apk</type>
+							<classifier>signed-aligned</classifier>
+						</artifact>
+						<artifact>
+							<file>${project.build.directory}/proguard/mapping.txt</file>
+							<type>map</type>
+							<classifier>release</classifier>
+						</artifact>
+					</artifacts>
+				</configuration>
+				<executions>
+					<execution>
+						<id>attach-signed-aligned</id>
+						<phase>package</phase>
+						<goals>
+							<goal>attach-artifact</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+

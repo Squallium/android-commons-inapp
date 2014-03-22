@@ -1,0 +1,38 @@
+language: java
+
+env:
+  global:
+    - ANDROID_SDK_VERSION="r22.0.1"
+    - ANDROID_BUILD_TOOLS_VERSION="r17"
+    - ANDROID_PLATFORM_TOOLS_VERSION="r17"
+
+jdk:
+  - openjdk7
+
+before_install:
+  # environment info
+  - mvn -version
+  # required libs for android build tools
+  - if [ `uname -m` = x86_64 ]; then sudo apt-get update; fi
+  - if [ `uname -m` = x86_64 ]; then sudo apt-get install -qq --force-yes libgd2-xpm ia32-libs ia32-libs-multiarch; fi
+  # newest android SDK 22.0.5
+  - wget http://dl.google.com/android/android-sdk_${ANDROID_SDK_VERSION}-linux.tgz
+  - tar -zxf android-sdk_${ANDROID_SDK_VERSION}-linux.tgz
+  - export ANDROID_HOME=`pwd`/android-sdk-linux
+  - export PATH=${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/platform-tools
+  # manually set sdk.dir variable, according to local paths
+  - echo "sdk.dir=$ANDROID_HOME" > local.properties
+  - echo yes | android update sdk -t tools,platform-tools,extra-android-support,extra-android-m2repository,android-18 --force --no-ui
+  # build tools cannot be installed through "android update sdk" as of now
+  - wget http://dl.google.com/android/repository/build-tools_r18.0.1-linux.zip
+  - mkdir -p $ANDROID_HOME/build-tools
+  - unzip -qq build-tools_r18.0.1-linux.zip -d $ANDROID_HOME/build-tools/
+  - mv $ANDROID_HOME/build-tools/android-4.3 $ANDROID_HOME/build-tools/18.0.1
+  # verify files exist in right paths
+  - find $ANDROID_HOME/build-tools
+  - file $ANDROID_HOME/build-tools/18.0.1/aapt
+
+install: mvn install -P travis
+
+script: 
+  - mvn -version

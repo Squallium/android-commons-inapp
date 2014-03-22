@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.squallium.androidcommons.inapp</groupId>
+    <artifactId>parent</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0.1</version>
+
+    <name>Android Commons In-App Library (Parent)</name>
+    <description>Library for unified the inapp process in Android</description>
+    <url>https://github.com/Squallium/android-commons-inapp</url>
+    <inceptionYear>2014</inceptionYear>
+
+    <modules>
+        <module>library</module>
+        <module>sample</module>
+    </modules>
+
+    <developers>
+        <developer>
+            <name>Borja Refoyo Ruiz</name>
+            <email>squallium3@gmail.com</email>
+            <id>Squallium</id>
+            <url>http://borjarefoyo.com</url>
+            <timezone>+1</timezone>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>Apache License Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Borja Refoyo Ruiz</name>
+        <url>http://borjarefoyo.com</url>
+    </organization>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/Squallium/android-commons-inapp/issues</url>
+    </issueManagement>
+
+    <distributionManagement>
+        <repository>
+            <id>libs-release-local</id>
+            <name>androidmaven-releases</name>
+            <url>http://artifactory.ci-server/artifactory/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+            <id>libs-snapshot-local</id>
+            <name>androidmaven-snapshots</name>
+            <url>http://artifactory.ci-server/artifactory/libs-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <properties>
+        <maven.compiler.version>3.1</maven.compiler.version>
+        <java.version>1.6</java.version>
+        <android.version>4.1.1.4</android.version>
+        <android.platform>18</android.platform>
+        <android-maven.version>3.7.0</android-maven.version>
+    </properties>
+
+    
+    <dependencies>
+        <dependency>
+            <groupId>com.google.android</groupId>
+            <artifactId>android</artifactId>
+            <version>${android.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>    
+
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <sourceDirectory>src</sourceDirectory>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                    <artifactId>android-maven-plugin</artifactId>
+                    <version>${android-maven.version}</version>
+                    <extensions>true</extensions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.version}</version>
+                <configuration>
+                    <source>${java.version>}</source>
+                    <target>${java.version>}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                <artifactId>android-maven-plugin</artifactId>
+                <configuration>
+                    <sdk>
+                        <!-- platform or api level (api level 4 = platform 1.6) -->
+                        <platform>${android.platform}</platform>
+                    </sdk>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

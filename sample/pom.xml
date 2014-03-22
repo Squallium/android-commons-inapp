@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.rfy.androidci</groupId>
+		<artifactId>release</artifactId>
+		<version>1.0.0</version>
+		<relativePath>../pom_release.xml</relativePath>
+	</parent>
+
+	<artifactId>sample</artifactId>
+	<version>1.0.0</version>
+	<packaging>apk</packaging>
+	<name>Android CI Sample</name>
+
+	<profiles>
+		<profile>
+			<id>google</id>
+			<properties>
+				<store>google</store>
+				<storeManifestPath></storeManifestPath>
+				<storeResourcePath></storeResourcePath>
+				<storeApkName>${project.artifactId}-${store}</storeApkName>
+				<sign.keystore>${env.HOME}/.keystores/Keystore_Test</sign.keystore>
+				<sign.alias>android-ci</sign.alias>
+				<sign.keypass>borjaci</sign.keypass>
+				<sign.storepass>borjaci</sign.storepass>
+			</properties>
+			<activation>
+				<property>
+					<name>performRelease</name>
+					<value>true</value>
+				</property>
+			</activation>
+		</profile>
+		<profile>
+			<id>travis</id>
+			<properties>
+				<store>google</store>
+				<storeManifestPath></storeManifestPath>
+				<storeResourcePath></storeResourcePath>
+				<storeApkName>${project.artifactId}-${store}</storeApkName>
+				<sign.keystore>${env.HOME}/build/Squallium/android-ci-example/Keystore_Test</sign.keystore>
+				<sign.alias>android-ci</sign.alias>
+				<sign.keypass>borjaci</sign.keypass>
+				<sign.storepass>borjaci</sign.storepass>
+			</properties>
+			<activation>
+				<property>
+					<name>performRelease</name>
+					<value>true</value>
+				</property>
+			</activation>
+		</profile>
+	</profiles>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.rfy.androidci</groupId>
+			<artifactId>library</artifactId>
+			<version>1.0.0</version>
+			<type>apklib</type>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.jayway.maven.plugins.android.generation2</groupId>
+				<artifactId>android-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<executions>
+					<execution>
+						<id>update-manifest</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>manifest-update</goal>
+						</goals>
+						<configuration>
+							<manifest>
+								<versionName>1.0.0</versionName>
+								<versionCode>834100</versionCode>
+
+								<compatible-screens>
+									<compatible-screen>
+										<screenSize>normal</screenSize>
+										<screenDensity>hdpi</screenDensity>
+									</compatible-screen>
+									<compatible-screen>
+										<screenSize>large</screenSize>
+										<screenDensity>ldpi</screenDensity>
+									</compatible-screen>
+									<compatible-screen>
+										<screenSize>large</screenSize>
+										<screenDensity>mdpi</screenDensity>
+									</compatible-screen>
+									<compatible-screen>
+										<screenSize>xlarge</screenSize>
+										<screenDensity>ldpi</screenDensity>
+									</compatible-screen>
+									<compatible-screen>
+										<screenSize>xlarge</screenSize>
+										<screenDensity>mdpi</screenDensity>
+									</compatible-screen>
+								</compatible-screens>
+							</manifest>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
