@@ -1,8 +1,8 @@
-package com.rfy.androidcisample.data;
+package com.squallium.commons.inapp.sample.data;
 
 import android.util.Log;
 
-import com.rfy.androidcilibrary.AbstractEntity;
+import com.squallium.commons.inapp.AbstractEntity;
 
 public class Item extends AbstractEntity {
 

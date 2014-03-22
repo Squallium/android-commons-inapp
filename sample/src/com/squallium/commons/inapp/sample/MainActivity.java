@@ -1,11 +1,12 @@
-package com.rfy.androidcisample;
+package com.squallium.commons.inapp.sample;
 
-import com.rfy.androidcisample.data.Cart;
-
-import android.os.Bundle;
 import android.app.Activity;
+import android.os.Bundle;
 import android.view.Menu;
 import android.widget.TextView;
+
+import com.rfy.androidcisample.R;
+import com.squallium.commons.inapp.sample.data.Cart;
 
 public class MainActivity extends Activity {
 

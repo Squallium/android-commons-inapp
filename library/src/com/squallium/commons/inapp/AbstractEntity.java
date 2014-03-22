@@ -1,4 +1,4 @@
-package com.rfy.androidcilibrary;
+package com.squallium.commons.inapp;
 
 import com.google.gson.Gson;
 
