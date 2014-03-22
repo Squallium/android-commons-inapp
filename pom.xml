@@ -65,9 +65,10 @@
     <properties>
         <maven.compiler.version>3.1</maven.compiler.version>
         <java.version>1.6</java.version>
+        <android.group.id>com.google.android</android.group.id>
         <android.version>4.1.1.4</android.version>
         <android.platform>18</android.platform>
-        <android-maven.version>3.7.0</android-maven.version>
+        <android-maven.version>3.8.2</android-maven.version>
     </properties>
 
     

@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.rfy.androidci</groupId>
+		<groupId>com.squallium.androidcommons.inapp</groupId>
 		<artifactId>parent</artifactId>
 		<version>1.0.1</version>
 		<relativePath>../pom.xml</relativePath>
@@ -13,7 +13,7 @@
 	<artifactId>library</artifactId>
 	<version>1.0.0</version>
 	<packaging>apklib</packaging>
-	<name>Android CI Library</name>
+	<name>Android Commons In-App Library</name>
 
 	<dependencies>
 		<!--  Gson: Java to Json conversion -->

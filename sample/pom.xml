@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.rfy.androidci</groupId>
+		<groupId>com.squallium.androidcommons.inapp</groupId>
 		<artifactId>release</artifactId>
 		<version>1.0.0</version>
 		<relativePath>../pom_release.xml</relativePath>
@@ -13,7 +13,7 @@
 	<artifactId>sample</artifactId>
 	<version>1.0.0</version>
 	<packaging>apk</packaging>
-	<name>Android CI Sample</name>
+	<name>Android Commons In-App Sample</name>
 
 	<profiles>
 		<profile>
@@ -58,7 +58,7 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>com.rfy.androidci</groupId>
+			<groupId>com.squallium.androidcommons.inapp</groupId>
 			<artifactId>library</artifactId>
 			<version>1.0.0</version>
 			<type>apklib</type>
