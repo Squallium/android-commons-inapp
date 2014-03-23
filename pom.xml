@@ -67,7 +67,7 @@
         <java.version>1.6</java.version>
         <android.group.id>com.google.android</android.group.id>
         <android.version>4.1.1.4</android.version>
-        <android.platform>18</android.platform>
+        <android.platform>19</android.platform>
         <android-maven.version>3.8.2</android-maven.version>
     </properties>
 
