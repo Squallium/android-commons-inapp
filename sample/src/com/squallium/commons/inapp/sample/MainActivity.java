@@ -15,8 +15,6 @@
 
 package com.squallium.commons.inapp.sample;
 
-import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -24,6 +22,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
+import com.squallium.commons.inapp.GoogleInAppBilling;
 import com.squallium.commons.inapp.google.IabHelper;
 import com.squallium.commons.inapp.google.IabResult;
 import com.squallium.commons.inapp.google.Inventory;
@@ -79,7 +78,16 @@ import com.squallium.commons.inapp.google.Purchase;
  * 
  * @author Bruno Oliveira (Google)
  */
-public class MainActivity extends Activity {
+public class MainActivity extends GoogleInAppBilling {
+
+	// ===========================================================
+	// Constants
+	// ===========================================================
+
+	// ===========================================================
+	// Fields
+	// ===========================================================
+
 	// Debug tag, for logging
 	static final String TAG = "TrivialDrive";
 
@@ -110,8 +118,13 @@ public class MainActivity extends Activity {
 	// Current amount of gas in tank, in units
 	int mTank;
 
-	// The helper object
-	IabHelper mHelper;
+	// ===========================================================
+	// Constructors
+	// ===========================================================
+
+	// ===========================================================
+	// Methods for/from SuperClass/Interfaces
+	// ===========================================================
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -133,109 +146,48 @@ public class MainActivity extends Activity {
 		 * want to make it easy for an attacker to replace the public key with
 		 * one of their own and then fake messages from the server.
 		 */
-		String base64EncodedPublicKey = "CONSTRUCT_YOUR_KEY_AND_PLACE_IT_HERE";
 
-		// Some sanity checks to see if the developer (that's you!) really
-		// followed the
-		// instructions to run this sample (don't put these checks on your app!)
-		if (base64EncodedPublicKey.contains("CONSTRUCT_YOUR")) {
-			throw new RuntimeException(
-					"Please put your app's public key in MainActivity.java. See README.");
-		}
-		if (getPackageName().startsWith("com.example")) {
-			throw new RuntimeException(
-					"Please change the sample's package name! See README.");
-		}
-
-		// Create the helper, passing it our context and the public key to
-		// verify signatures with
-		Log.d(TAG, "Creating IAB helper.");
-		mHelper = new IabHelper(this, base64EncodedPublicKey);
-
-		// enable debug logging (for a production application, you should set
-		// this to false).
-		mHelper.enableDebugLogging(true);
-
-		// Start setup. This is asynchronous and the specified listener
-		// will be called once setup completes.
-		Log.d(TAG, "Starting setup.");
-		mHelper.startSetup(new IabHelper.OnIabSetupFinishedListener() {
-			public void onIabSetupFinished(IabResult result) {
-				Log.d(TAG, "Setup finished.");
-
-				if (!result.isSuccess()) {
-					// Oh noes, there was a problem.
-					complain("Problem setting up in-app billing: " + result);
-					return;
-				}
-
-				// Have we been disposed of in the meantime? If so, quit.
-				if (mHelper == null)
-					return;
-
-				// IAB is fully set up. Now, let's get an inventory of stuff we
-				// own.
-				Log.d(TAG, "Setup successful. Querying inventory.");
-				mHelper.queryInventoryAsync(mGotInventoryListener);
-			}
-		});
 	}
 
-	// Listener that's called when we finish querying the items and
-	// subscriptions we own
-	IabHelper.QueryInventoryFinishedListener mGotInventoryListener = new IabHelper.QueryInventoryFinishedListener() {
-		public void onQueryInventoryFinished(IabResult result,
-				Inventory inventory) {
-			Log.d(TAG, "Query inventory finished.");
+	@Override
+	protected String getBase64EncodedPublicKey() {
+		return "";
+	}
 
-			// Have we been disposed of in the meantime? If so, quit.
-			if (mHelper == null)
-				return;
+	@Override
+	protected void checkInventoryItems(Inventory inventory) {
+		// Do we have the premium upgrade?
+		Purchase premiumPurchase = inventory.getPurchase(SKU_PREMIUM);
+		mIsPremium = (premiumPurchase != null && verifyDeveloperPayload(premiumPurchase));
+		Log.d(TAG, "User is " + (mIsPremium ? "PREMIUM" : "NOT PREMIUM"));
 
-			// Is it a failure?
-			if (result.isFailure()) {
-				complain("Failed to query inventory: " + result);
-				return;
-			}
+		// Do we have the infinite gas plan?
+		Purchase infiniteGasPurchase = inventory.getPurchase(SKU_INFINITE_GAS);
+		mSubscribedToInfiniteGas = (infiniteGasPurchase != null && verifyDeveloperPayload(infiniteGasPurchase));
+		Log.d(TAG, "User "
+				+ (mSubscribedToInfiniteGas ? "HAS" : "DOES NOT HAVE")
+				+ " infinite gas subscription.");
+		if (mSubscribedToInfiniteGas)
+			mTank = TANK_MAX;
 
-			Log.d(TAG, "Query inventory was successful.");
-
-			/*
-			 * Check for items we own. Notice that for each purchase, we check
-			 * the developer payload to see if it's correct! See
-			 * verifyDeveloperPayload().
-			 */
-
-			// Do we have the premium upgrade?
-			Purchase premiumPurchase = inventory.getPurchase(SKU_PREMIUM);
-			mIsPremium = (premiumPurchase != null && verifyDeveloperPayload(premiumPurchase));
-			Log.d(TAG, "User is " + (mIsPremium ? "PREMIUM" : "NOT PREMIUM"));
-
-			// Do we have the infinite gas plan?
-			Purchase infiniteGasPurchase = inventory
-					.getPurchase(SKU_INFINITE_GAS);
-			mSubscribedToInfiniteGas = (infiniteGasPurchase != null && verifyDeveloperPayload(infiniteGasPurchase));
-			Log.d(TAG, "User "
-					+ (mSubscribedToInfiniteGas ? "HAS" : "DOES NOT HAVE")
-					+ " infinite gas subscription.");
-			if (mSubscribedToInfiniteGas)
-				mTank = TANK_MAX;
-
-			// Check for gas delivery -- if we own gas, we should fill up the
-			// tank immediately
-			Purchase gasPurchase = inventory.getPurchase(SKU_GAS);
-			if (gasPurchase != null && verifyDeveloperPayload(gasPurchase)) {
-				Log.d(TAG, "We have gas. Consuming it.");
-				mHelper.consumeAsync(inventory.getPurchase(SKU_GAS),
-						mConsumeFinishedListener);
-				return;
-			}
-
-			updateUi();
-			setWaitScreen(false);
-			Log.d(TAG, "Initial inventory query finished; enabling main UI.");
+		// Check for gas delivery -- if we own gas, we should fill up the
+		// tank immediately
+		Purchase gasPurchase = inventory.getPurchase(SKU_GAS);
+		if (gasPurchase != null && verifyDeveloperPayload(gasPurchase)) {
+			Log.d(TAG, "We have gas. Consuming it.");
+			mHelper.consumeAsync(inventory.getPurchase(SKU_GAS),
+					mConsumeFinishedListener);
+			return;
 		}
-	};
+
+		updateUi();
+		setWaitScreen(false);
+		Log.d(TAG, "Initial inventory query finished; enabling main UI.");
+	}
+
+	// ===========================================================
+	// Methods
+	// ===========================================================
 
 	// User clicked the "Buy Gas" button
 	public void onBuyGasButtonClicked(View arg0) {
@@ -505,19 +457,6 @@ public class MainActivity extends Activity {
 				set ? View.VISIBLE : View.GONE);
 	}
 
-	void complain(String message) {
-		Log.e(TAG, "**** TrivialDrive Error: " + message);
-		alert("Error: " + message);
-	}
-
-	void alert(String message) {
-		AlertDialog.Builder bld = new AlertDialog.Builder(this);
-		bld.setMessage(message);
-		bld.setNeutralButton("OK", null);
-		Log.d(TAG, "Showing alert dialog: " + message);
-		bld.create().show();
-	}
-
 	void saveData() {
 
 		/*
@@ -537,4 +476,12 @@ public class MainActivity extends Activity {
 		mTank = sp.getInt("tank", 2);
 		Log.d(TAG, "Loaded data: tank = " + String.valueOf(mTank));
 	}
+
+	// ===========================================================
+	// Getter & Setter
+	// ===========================================================
+
+	// ===========================================================
+	// Inner and Anonymous Classes
+	// ===========================================================
 }
