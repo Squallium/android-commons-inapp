@@ -173,12 +173,7 @@ public class MainActivity extends GoogleInAppBilling {
 		// Check for gas delivery -- if we own gas, we should fill up the
 		// tank immediately
 		Purchase gasPurchase = inventory.getPurchase(SKU_GAS);
-		if (gasPurchase != null && verifyDeveloperPayload(gasPurchase)) {
-			Log.d(TAG, "We have gas. Consuming it.");
-			mHelper.consumeAsync(inventory.getPurchase(SKU_GAS),
-					mConsumeFinishedListener);
-			return;
-		}
+		consume(gasPurchase, mConsumeFinishedListener);
 
 		updateUi();
 		setWaitScreen(false);
@@ -216,7 +211,7 @@ public class MainActivity extends GoogleInAppBilling {
 		 */
 		String payload = "";
 
-		mHelper.launchPurchaseFlow(this, SKU_GAS, RC_REQUEST,
+		purchase(InAppType.consumable, SKU_GAS, RC_REQUEST,
 				mPurchaseFinishedListener, payload);
 	}
 
@@ -234,7 +229,7 @@ public class MainActivity extends GoogleInAppBilling {
 		 */
 		String payload = "";
 
-		mHelper.launchPurchaseFlow(this, SKU_PREMIUM, RC_REQUEST,
+		purchase(InAppType.non_consumable, SKU_PREMIUM, RC_REQUEST,
 				mPurchaseFinishedListener, payload);
 	}
 
@@ -257,8 +252,7 @@ public class MainActivity extends GoogleInAppBilling {
 
 		setWaitScreen(true);
 		Log.d(TAG, "Launching purchase flow for infinite gas subscription.");
-		mHelper.launchPurchaseFlow(this, SKU_INFINITE_GAS,
-				IabHelper.ITEM_TYPE_SUBS, RC_REQUEST,
+		purchase(InAppType.subscription, SKU_INFINITE_GAS, RC_REQUEST,
 				mPurchaseFinishedListener, payload);
 	}
 
@@ -278,39 +272,6 @@ public class MainActivity extends GoogleInAppBilling {
 		} else {
 			Log.d(TAG, "onActivityResult handled by IABUtil.");
 		}
-	}
-
-	/** Verifies the developer payload of a purchase. */
-	boolean verifyDeveloperPayload(Purchase p) {
-		String payload = p.getDeveloperPayload();
-
-		/*
-		 * TODO: verify that the developer payload of the purchase is correct.
-		 * It will be the same one that you sent when initiating the purchase.
-		 * 
-		 * WARNING: Locally generating a random string when starting a purchase
-		 * and verifying it here might seem like a good approach, but this will
-		 * fail in the case where the user purchases an item on one device and
-		 * then uses your app on a different device, because on the other device
-		 * you will not have access to the random string you originally
-		 * generated.
-		 * 
-		 * So a good developer payload has these characteristics:
-		 * 
-		 * 1. If two different users purchase an item, the payload is different
-		 * between them, so that one user's purchase can't be replayed to
-		 * another user.
-		 * 
-		 * 2. The payload must be such that you can verify it even when the app
-		 * wasn't the one who initiated the purchase flow (so that items
-		 * purchased by the user on one device work on other devices owned by
-		 * the user).
-		 * 
-		 * Using your own server to store and verify developer payloads across
-		 * app installations is recommended.
-		 */
-
-		return true;
 	}
 
 	// Callback for when a purchase is finished

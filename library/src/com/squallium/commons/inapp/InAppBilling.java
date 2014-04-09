@@ -49,4 +49,8 @@ public abstract class InAppBilling extends Activity implements IInAppBilling {
 	// Inner and Anonymous Classes
 	// ===========================================================
 
+	public enum InAppType {
+		consumable, non_consumable, subscription;
+	}
+
 }
