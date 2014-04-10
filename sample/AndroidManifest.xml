@@ -5,10 +5,10 @@
     android:versionName="1.0.0" >
 
     <uses-sdk
-        android:minSdkVersion="8"
+        android:minSdkVersion="10"
         android:targetSdkVersion="18" />
 
-<!-- VERY IMPORTANT! Don't forget this permission, or in-app billing won't work. -->
+    <!-- Google In-App Billing -->
     <uses-permission android:name="com.android.vending.BILLING" />
 
     <application
@@ -26,24 +26,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
-    <compatible-screens>
-        <screen
-            android:screenDensity="mdpi"
-            android:screenSize="large" />
-        <screen
-            android:screenDensity="ldpi"
-            android:screenSize="large" />
-        <screen
-            android:screenDensity="hdpi"
-            android:screenSize="normal" />
-        <screen
-            android:screenDensity="ldpi"
-            android:screenSize="xlarge" />
-        <screen
-            android:screenDensity="mdpi"
-            android:screenSize="xlarge" />
-    </compatible-screens>
+        <!-- Amazon In-App Billing -->
+        <receiver android:name="com.amazon.inapp.purchasing.ResponseReceiver" >
+            <intent-filter>
+                <action
+                    android:name="com.amazon.inapp.purchasing.NOTIFY"
+                    android:permission="com.amazon.inapp.purchasing.Permission.NOTIFY" />
+            </intent-filter>
+        </receiver>
+    </application>
 
 </manifest>

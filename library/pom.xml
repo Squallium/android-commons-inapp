@@ -22,7 +22,14 @@
 			<artifactId>compatibility-v4</artifactId>
 			<version>19.0.1</version>
 		</dependency>
-
+		
+		<!-- Amazon Libraries -->
+		<dependency>
+			<groupId>com.amazon.inapp.purchasing</groupId>
+			<artifactId>in-app-purchasing</artifactId>
+			<version>1.0.3</version>
+		</dependency>
+		
 		<!-- Gson: Java to Json conversion -->
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
