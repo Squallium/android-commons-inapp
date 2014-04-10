@@ -1,6 +1,6 @@
 package com.squallium.commons.inapp;
 
-import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -22,10 +22,14 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 	// ===========================================================
 
 	// The helper object
-	protected IabHelper mHelper;
+	private IabHelper mHelper;
 
 	// The query inventory listener
 	private IabHelper.QueryInventoryFinishedListener mGotInventoryListener;
+
+	private IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener;
+
+	private IInAppBilling.OnConsumeItemListener onConsumeItemListener;
 
 	// ===========================================================
 	// Constructors
@@ -90,6 +94,46 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 		});
 	}
 
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		Log.d(TAG, "onActivityResult(" + requestCode + "," + resultCode + ","
+				+ data);
+		if (mHelper == null)
+			return;
+
+		// Pass on the activity result to the helper for handling
+		if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
+			// not handled, so handle it ourselves
+			super.onActivityResult(requestCode, resultCode, data);
+
+			// call the customOnActivityResult for abstraction
+			customOnActivityResult(requestCode, resultCode, data);
+		} else {
+			Log.d(TAG, "onActivityResult handled by IABUtil.");
+		}
+	}
+
+	/***
+	 * Here's where you'd perform any handling of activity results not related
+	 * to in-app billing...
+	 */
+	@Override
+	public void customOnActivityResult(int arg0, int arg1, Intent arg2) {
+
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+
+		// very important:
+		Log.d(TAG, "Destroying helper.");
+		if (mHelper != null) {
+			mHelper.dispose();
+			mHelper = null;
+		}
+	}
+
 	protected abstract String getBase64EncodedPublicKey();
 
 	protected abstract void checkInventoryItems(Inventory inventory);
@@ -98,9 +142,23 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 	// Methods
 	// ===========================================================
 
+	/**
+	 * Method for do the purchase purchase
+	 * 
+	 * @param inAppType
+	 * @param sku
+	 * @param requestCode
+	 * @param mPurchaseFinishedListener
+	 * @param payload
+	 */
 	public void purchase(InAppType inAppType, String sku, int requestCode,
-			IabHelper.OnIabPurchaseFinishedListener mPurchaseFinishedListener,
+			IInAppBilling.OnPurchaseFinishedListener pPurchaseFinishedListener,
 			String payload) {
+
+		// Registramos el listener de respuesta
+		setOnPurchaseFinishedListener(pPurchaseFinishedListener);
+
+		// Lanzamos el proceso de compra
 		switch (inAppType) {
 		case consumable:
 			mHelper.launchPurchaseFlow(this, sku, requestCode,
@@ -118,16 +176,32 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 	}
 
 	/**
+	 * Checks if the subscription is available
+	 * 
+	 * @return
+	 */
+	public boolean isSubscriptionSupported() {
+		boolean result = false;
+
+		if (mHelper != null) {
+			result = mHelper.subscriptionsSupported();
+		}
+
+		return result;
+	}
+
+	/**
 	 * Consume item
 	 * 
 	 * @param pPurchase
 	 * @param pConsumeFinishedListener
 	 */
-	public void consume(Purchase pPurchase,
-			IabHelper.OnConsumeFinishedListener pConsumeFinishedListener) {
+	public void consumeItem(Purchase pPurchase,
+			IInAppBilling.OnConsumeItemListener pConsumeItemListener) {
 		if (pPurchase != null && verifyDeveloperPayload(pPurchase)) {
 			Log.d(TAG, "We have gas. Consuming it.");
-			mHelper.consumeAsync(pPurchase, pConsumeFinishedListener);
+			setOnConsumeItemListener(pConsumeItemListener);
+			mHelper.consumeAsync(pPurchase, mConsumeFinishedListener);
 			return;
 		}
 	}
@@ -169,9 +243,27 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 	// Getter & Setter
 	// ===========================================================
 
+	public IInAppBilling.OnConsumeItemListener getOnConsumeItemListener() {
+		return onConsumeItemListener;
+	}
+
+	public void setOnConsumeItemListener(
+			IInAppBilling.OnConsumeItemListener onConsumeItemListener) {
+		this.onConsumeItemListener = onConsumeItemListener;
+	}
+
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
+	public IInAppBilling.OnPurchaseFinishedListener getOnPurchaseFinishedListener() {
+		return onPurchaseFinishedListener;
+	}
+
+	public void setOnPurchaseFinishedListener(
+			IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener) {
+		this.onPurchaseFinishedListener = onPurchaseFinishedListener;
+	}
 
 	// Listener that's called when we finish querying the items and
 	// subscriptions we own
@@ -199,6 +291,43 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 			 * verifyDeveloperPayload().
 			 */
 			checkInventoryItems(inventory);
+		}
+	};
+
+	// Callback for when a purchase is finished
+	IabHelper.OnIabPurchaseFinishedListener mPurchaseFinishedListener = new IabHelper.OnIabPurchaseFinishedListener() {
+		public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
+			Log.d(TAG, "Purchase finished: " + result + ", purchase: "
+					+ purchase);
+
+			// if we were disposed of in the meantime, quit.
+			if (mHelper == null)
+				return;
+
+			// call the listener
+			if (onPurchaseFinishedListener != null) {
+				onPurchaseFinishedListener.onPurchaseFinished(result, purchase);
+			}
+
+			Log.d(TAG, "End purchase finished flow.");
+		}
+	};
+
+	// Called when consumption is complete
+	IabHelper.OnConsumeFinishedListener mConsumeFinishedListener = new IabHelper.OnConsumeFinishedListener() {
+		public void onConsumeFinished(Purchase purchase, IabResult result) {
+			Log.d(TAG, "Consumption finished. Purchase: " + purchase
+					+ ", result: " + result);
+
+			// if we were disposed of in the meantime, quit.
+			if (mHelper == null)
+				return;
+
+			if (onConsumeItemListener != null) {
+				onConsumeItemListener.onConsumeItem(purchase, result);
+			}
+
+			Log.d(TAG, "End consumption flow.");
 		}
 	};
 

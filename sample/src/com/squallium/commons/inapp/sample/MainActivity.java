@@ -15,7 +15,6 @@
 
 package com.squallium.commons.inapp.sample;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
@@ -23,7 +22,7 @@ import android.view.View;
 import android.widget.ImageView;
 
 import com.squallium.commons.inapp.GoogleInAppBilling;
-import com.squallium.commons.inapp.google.IabHelper;
+import com.squallium.commons.inapp.IInAppBilling;
 import com.squallium.commons.inapp.google.IabResult;
 import com.squallium.commons.inapp.google.Inventory;
 import com.squallium.commons.inapp.google.Purchase;
@@ -173,7 +172,7 @@ public class MainActivity extends GoogleInAppBilling {
 		// Check for gas delivery -- if we own gas, we should fill up the
 		// tank immediately
 		Purchase gasPurchase = inventory.getPurchase(SKU_GAS);
-		consume(gasPurchase, mConsumeFinishedListener);
+		consumeItem(gasPurchase, mConsumeItemListener);
 
 		updateUi();
 		setWaitScreen(false);
@@ -237,7 +236,7 @@ public class MainActivity extends GoogleInAppBilling {
 	// purchase
 	// flow for subscription.
 	public void onInfiniteGasButtonClicked(View arg0) {
-		if (!mHelper.subscriptionsSupported()) {
+		if (!isSubscriptionSupported()) {
 			complain("Subscriptions not supported on your device yet. Sorry!");
 			return;
 		}
@@ -256,34 +255,9 @@ public class MainActivity extends GoogleInAppBilling {
 				mPurchaseFinishedListener, payload);
 	}
 
-	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		Log.d(TAG, "onActivityResult(" + requestCode + "," + resultCode + ","
-				+ data);
-		if (mHelper == null)
-			return;
-
-		// Pass on the activity result to the helper for handling
-		if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
-			// not handled, so handle it ourselves (here's where you'd
-			// perform any handling of activity results not related to in-app
-			// billing...
-			super.onActivityResult(requestCode, resultCode, data);
-		} else {
-			Log.d(TAG, "onActivityResult handled by IABUtil.");
-		}
-	}
-
 	// Callback for when a purchase is finished
-	IabHelper.OnIabPurchaseFinishedListener mPurchaseFinishedListener = new IabHelper.OnIabPurchaseFinishedListener() {
-		public void onIabPurchaseFinished(IabResult result, Purchase purchase) {
-			Log.d(TAG, "Purchase finished: " + result + ", purchase: "
-					+ purchase);
-
-			// if we were disposed of in the meantime, quit.
-			if (mHelper == null)
-				return;
-
+	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+		public void onPurchaseFinished(IabResult result, Purchase purchase) {
 			if (result.isFailure()) {
 				complain("Error purchasing: " + result);
 				setWaitScreen(false);
@@ -300,7 +274,7 @@ public class MainActivity extends GoogleInAppBilling {
 			if (purchase.getSku().equals(SKU_GAS)) {
 				// bought 1/4 tank of gas. So consume it.
 				Log.d(TAG, "Purchase is gas. Starting gas consumption.");
-				mHelper.consumeAsync(purchase, mConsumeFinishedListener);
+				consumeItem(purchase, mConsumeItemListener);
 			} else if (purchase.getSku().equals(SKU_PREMIUM)) {
 				// bought the premium upgrade!
 				Log.d(TAG, "Purchase is premium upgrade. Congratulating user.");
@@ -320,40 +294,6 @@ public class MainActivity extends GoogleInAppBilling {
 		}
 	};
 
-	// Called when consumption is complete
-	IabHelper.OnConsumeFinishedListener mConsumeFinishedListener = new IabHelper.OnConsumeFinishedListener() {
-		public void onConsumeFinished(Purchase purchase, IabResult result) {
-			Log.d(TAG, "Consumption finished. Purchase: " + purchase
-					+ ", result: " + result);
-
-			// if we were disposed of in the meantime, quit.
-			if (mHelper == null)
-				return;
-
-			// We know this is the "gas" sku because it's the only one we
-			// consume,
-			// so we don't check which sku was consumed. If you have more than
-			// one
-			// sku, you probably should check...
-			if (result.isSuccess()) {
-				// successfully consumed, so we apply the effects of the item in
-				// our
-				// game world's logic, which in our case means filling the gas
-				// tank a bit
-				Log.d(TAG, "Consumption successful. Provisioning.");
-				mTank = mTank == TANK_MAX ? TANK_MAX : mTank + 1;
-				saveData();
-				alert("You filled 1/4 tank. Your tank is now "
-						+ String.valueOf(mTank) + "/4 full!");
-			} else {
-				complain("Error while consuming: " + result);
-			}
-			updateUi();
-			setWaitScreen(false);
-			Log.d(TAG, "End consumption flow.");
-		}
-	};
-
 	// Drive button clicked. Burn gas!
 	public void onDriveButtonClicked(View arg0) {
 		Log.d(TAG, "Drive button clicked.");
@@ -366,19 +306,6 @@ public class MainActivity extends GoogleInAppBilling {
 			alert("Vroooom, you drove a few miles.");
 			updateUi();
 			Log.d(TAG, "Vrooom. Tank is now " + mTank);
-		}
-	}
-
-	// We're being destroyed. It's important to dispose of the helper here!
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-
-		// very important:
-		Log.d(TAG, "Destroying helper.");
-		if (mHelper != null) {
-			mHelper.dispose();
-			mHelper = null;
 		}
 	}
 
@@ -445,4 +372,30 @@ public class MainActivity extends GoogleInAppBilling {
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
+	// Called when consumption is complete
+	IInAppBilling.OnConsumeItemListener mConsumeItemListener = new IInAppBilling.OnConsumeItemListener() {
+		public void onConsumeItem(Purchase purchase, IabResult result) {
+			// We know this is the "gas" sku because it's the only one we
+			// consume,
+			// so we don't check which sku was consumed. If you have more than
+			// one
+			// sku, you probably should check...
+			if (result.isSuccess()) {
+				// successfully consumed, so we apply the effects of the item in
+				// our
+				// game world's logic, which in our case means filling the gas
+				// tank a bit
+				Log.d(TAG, "Consumption successful. Provisioning.");
+				mTank = mTank == TANK_MAX ? TANK_MAX : mTank + 1;
+				saveData();
+				alert("You filled 1/4 tank. Your tank is now "
+						+ String.valueOf(mTank) + "/4 full!");
+			} else {
+				complain("Error while consuming: " + result);
+			}
+			updateUi();
+			setWaitScreen(false);
+		}
+	};
 }
