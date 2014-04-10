@@ -5,4 +5,14 @@
     <string name="menu_settings">Settings</string>
     <string name="title_activity_main">TrivialDrive</string>
 
+    <!--  -->
+    <string name="action_settings">Settings</string>
+    <string name="buy_orange">Buy Orange</string>
+    <string name="i_have">I have</string>
+    <string name="zero">0</string>
+    <string name="oranges">orange(s)</string>
+    <string name="eat_orange">Eat Orange</string>
+    <string name="i_ate">I ate</string>
+    <string name="oranges_already">orange(s) already</string>
+
 </resources>
