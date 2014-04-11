@@ -1,5 +1,7 @@
 package com.squallium.commons.inapp;
 
+import java.util.Set;
+
 import android.content.Intent;
 
 import com.squallium.commons.inapp.google.IabResult;
@@ -8,6 +10,28 @@ import com.squallium.commons.inapp.google.Purchase;
 public interface IInAppBilling {
 
 	void customOnActivityResult(int requestCode, int resultCode, Intent data);
+
+	/**
+	 * Callback that notifies when a item sku is available
+	 */
+	public interface OnItemSkuAvailableListener {
+		/**
+		 * 
+		 * @param sku
+		 */
+		public void onItemSkuAvailable(String sku);
+	}
+
+	/**
+	 * Callback that notifies when a item sku is unavailable
+	 */
+	public interface OnItemSkuUnavailableListener {
+		/**
+		 * 
+		 * @param unavailableSkus
+		 */
+		public void onItemSkuUnavailable(Set<String> unavailableSkus);
+	}
 
 	/**
 	 * Callback that notifies when a purchase is finished.

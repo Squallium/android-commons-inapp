@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -12,27 +11,45 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.amazon.inapp.purchasing.GetUserIdResponse;
-import com.amazon.inapp.purchasing.GetUserIdResponse.GetUserIdRequestStatus;
 import com.amazon.inapp.purchasing.Item;
 import com.amazon.inapp.purchasing.ItemDataResponse.ItemDataRequestStatus;
 import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
 import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver;
+import com.squallium.commons.inapp.AmazonInAppBilling;
+import com.squallium.commons.inapp.IInAppBilling;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseData;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseDataStorage;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.SKUData;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserverListener;
 import com.squallium.commons.inapp.amazon.MySKU;
 import com.squallium.commons.inapp.sample.R;
 
-public class MainActivity extends Activity implements
-		AppPurchasingObserverListener {
+public class MainActivity extends AmazonInAppBilling {
 
-	// Wrapper around SharedPreferences to save request state
-	// and purchase receipt data
-	private PurchaseDataStorage purchaseDataStorage;
+	// ===========================================================
+	// Constants
+	// ===========================================================
+
+	private static final String TAG = "SampleIAPConsumablesApp";
+
+	// ===========================================================
+	// Fields
+	// ===========================================================
+
+	protected Handler guiThreadHandler;
+
+	protected Button buyOrangeButton;
+	protected Button eatOrangeButton;
+
+	protected TextView numOranges;
+	protected TextView numOrangesConsumed;
+
+	// ===========================================================
+	// Constructors
+	// ===========================================================
+
+	// ===========================================================
+	// Methods for/from SuperClass/Interfaces
+	// ===========================================================
 
 	/**
 	 * Setup IAP SDK and other UI related objects specific to this sample
@@ -43,202 +60,6 @@ public class MainActivity extends Activity implements
 		super.onCreate(savedInstanceState);
 
 		setupApplicationSpecificOnCreate();
-
-		setupIAPOnCreate();
-	}
-
-	/**
-	 * Setup for IAP SDK called from onCreate. Sets up
-	 * {@link PurchaseDataStorage} for storing purchase receipt data,
-	 * {@link AppPurchasingObserver} for listening to IAP API callbacks and sets
-	 * up this activity as a {@link AppPurchasingObserverListener} to listen for
-	 * callbacks from the {@link AppPurchasingObserver}.
-	 */
-	private void setupIAPOnCreate() {
-		purchaseDataStorage = new PurchaseDataStorage(this);
-
-		AppPurchasingObserver purchasingObserver = new AppPurchasingObserver(
-				this, purchaseDataStorage);
-		purchasingObserver.setListener(this);
-
-		Log.i(TAG, "onCreate: registering AppPurchasingObserver");
-		PurchasingManager.registerObserver(purchasingObserver);
-	}
-
-	/**
-	 * Calls {@link PurchasingManager#initiateGetUserIdRequest()} to get current
-	 * userId and {@link PurchasingManager#initiateItemDataRequest(Set)} with
-	 * the list of SKUs to verify the SKUs are valid in the Appstore.
-	 */
-	@Override
-	protected void onResume() {
-		super.onResume();
-
-		Log.i(TAG, "onResume: call initiateGetUserIdRequest");
-		PurchasingManager.initiateGetUserIdRequest();
-
-		Log.i(TAG,
-				"onResume: call initiateItemDataRequest for skus: "
-						+ MySKU.getAll());
-		PurchasingManager.initiateItemDataRequest(MySKU.getAll());
-	}
-
-	/**
-	 * Click handler called when user clicks button to buy an orange consumable.
-	 * This method calls
-	 * {@link PurchasingManager#initiatePurchaseRequest(String)} with the SKU
-	 * for the orange consumable.
-	 */
-	public void onBuyOrangeClick(View view) {
-		String requestId = PurchasingManager
-				.initiatePurchaseRequest(MySKU.ORANGE.getSku());
-		PurchaseData purchaseData = purchaseDataStorage
-				.newPurchaseData(requestId);
-		Log.i(TAG, "onBuyOrangeClick: requestId (" + requestId
-				+ ") requestState (" + purchaseData.getRequestState() + ")");
-	}
-
-	/**
-	 * Click handler called when user clicks button to eat an orange consumable.
-	 */
-	public void onEatOrangeClick(View view) {
-		String sku = MySKU.ORANGE.getSku();
-
-		SKUData skuData = purchaseDataStorage.getSKUData(sku);
-		Log.i(TAG, "onEatOrangeClick: consuming 1 orange");
-		skuData.consume(1);
-		purchaseDataStorage.saveSKUData(skuData);
-
-		updateOrangesInView(skuData.getHaveQuantity(),
-				skuData.getConsumedQuantity());
-	}
-	/**
-	 * Callback for a successful get user id response
-	 * {@link GetUserIdResponseStatus#SUCCESSFUL}.
-	 * 
-	 * In this sample app, if the user changed from the previously stored user,
-	 * this method updates the display based on purchase data stored for the
-	 * user in SharedPreferences.  The orange consumable is fulfilled
-	 * if a stored purchase token was found to NOT be fulfilled or if the SKU
-	 * should be fulfilled.
-	 * 
-	 * @param userId
-	 *            returned from {@link GetUserIdResponse#getUserId()}.
-	 * @param userChanged
-	 *            - whether user changed from previously stored user.
-	 */
-	@Override
-	public void onGetUserIdResponseSuccessful(String userId, boolean userChanged) {
-		Log.i(TAG,
-				"onGetUserIdResponseSuccessful: update display based on current userId");
-
-		Set<String> requestIds = purchaseDataStorage.getAllRequestIds();
-		Log.i(TAG, "onGetUserIdResponseSuccessful: (" + requestIds.size()
-				+ ") saved requestIds");
-		for (String requestId : requestIds) {
-			PurchaseData purchaseData = purchaseDataStorage
-					.getPurchaseData(requestId);
-			if (purchaseData == null) {
-				Log.i(TAG,
-						"onGetUserIdResponseSuccessful: could NOT find purchaseData for requestId ("
-								+ requestId + "), skipping");
-				continue;
-			}
-			if (purchaseDataStorage.isRequestStateSent(requestId)) {
-				Log.i(TAG,
-						"onGetUserIdResponseSuccessful: have not received purchase response for requestId still in SENT status: requestId ("
-								+ requestId + "), skipping");
-				continue;
-			}
-
-			Log.d(TAG, "onGetUserIdResponseSuccessful: requestId (" + requestId
-					+ ") " + purchaseData);
-			String sku = purchaseData.getSKU();
-			SKUData skuData = purchaseDataStorage.getSKUData(sku);
-
-			if (!purchaseData.isPurchaseTokenFulfilled()) {
-				Log.i(TAG, "onGetUserIdResponseSuccessful: purchaseToken ("
-						+ purchaseData.getPurchaseToken()
-						+ ") was NOT fulfilled, fulfilling purchase now");
-
-				updateOrangesInView(skuData.getHaveQuantity());
-
-				purchaseDataStorage.setPurchaseTokenFulfilled(purchaseData
-						.getPurchaseToken());
-				purchaseDataStorage.setRequestStateFulfilled(requestId);
-			} else {
-				Log.i(TAG, "onGetUserIdResponseSuccessful: for purchaseToken ("
-						+ purchaseData.getPurchaseToken()
-						+ ") call fulfillSKU on SKU: " + purchaseData.getSKU());
-				final int haveQuantity = skuData.getHaveQuantity();
-				final int consumedQuantity = skuData.getConsumedQuantity();
-
-				Log.i(TAG,
-						"onGetUserIdResponseSuccessful: call updateOrangesInView, have ("
-								+ haveQuantity + ") oranges and consumed ("
-								+ consumedQuantity + ") oranges");
-				updateOrangesInView(haveQuantity, consumedQuantity);
-			}
-		}
-	}
-
-	/**
-	 * Callback for a failed get user id response
-	 * {@link GetUserIdRequestStatus#FAILED}
-	 * 
-	 * @param requestId
-	 *            returned from {@link GetUserIdResponsee#getRequestId()} that
-	 *            can be used to correlate with original request sent with
-	 *            {@link PurchasingManager#initiateGetUserIdRequest()}.
-	 */
-	@Override
-	public void onGetUserIdResponseFailed(String requestId) {
-		Log.i(TAG, "onGetUserIdResponseFailed for requestId (" + requestId
-				+ ")");
-	}
-
-	/**
-	 * Callback for item data response with unavailable SKUs. This means that
-	 * these unavailable SKUs are NOT accessible in developer portal. In this
-	 * sample app, we would disable the buy button for these SKUs
-	 * 
-	 * @param unavailableSkus
-	 */
-	@Override
-	public void onItemDataResponseSuccessfulWithUnavailableSkus(
-			Set<String> unavailableSkus) {
-		disableButtonsForUnavailableSkus(unavailableSkus);
-	}
-
-	/**
-	 * Callback for successful item data response
-	 * {@link ItemDataRequestStatus#SUCCESSFUL} with item data
-	 * 
-	 * @param itemData
-	 *            - map of valid SKU->Items
-	 */
-	@Override
-	public void onItemDataResponseSuccessful(Map<String, Item> itemData) {
-		for (Entry<String, Item> entry : itemData.entrySet()) {
-			String sku = entry.getKey();
-			Item item = entry.getValue();
-			Log.i(TAG, "onItemDataResponseSuccessful: sku (" + sku + ") item ("
-					+ item + ")");
-			if (MySKU.ORANGE.getSku().equals(sku)) {
-				enableBuyOrangeButton();
-			}
-		}
-	}
-
-	/**
-	 * Callback for failed item data response
-	 * {@link ItemDataRequestStatus#FAILED}.
-	 * 
-	 * @param requestId
-	 */
-	public void onItemDataResponseFailed(String requestId) {
-		Log.i(TAG, "onItemDataResponseFailed: for requestId (" + requestId
-				+ ")");
 	}
 
 	/**
@@ -252,12 +73,20 @@ public class MainActivity extends Activity implements
 			String purchaseToken) {
 		Log.i(TAG, "onPurchaseResponseSuccess: for userId (" + userId
 				+ ") sku (" + sku + ")");
-		SKUData skuData = purchaseDataStorage.getSKUData(sku);
+		SKUData skuData = getSKUData(sku);
 		if (skuData == null)
 			return;
 
 		if (MySKU.ORANGE.getSku().equals(skuData.getSKU())) {
-			updateOrangesInView(skuData.getHaveQuantity());
+
+			final int haveQuantity = skuData.getHaveQuantity();
+			final int consumedQuantity = skuData.getConsumedQuantity();
+
+			Log.i(TAG,
+					"onGetUserIdResponseSuccessful: call updateOrangesInView, have ("
+							+ haveQuantity + ") oranges and consumed ("
+							+ consumedQuantity + ") oranges");
+			updateOrangesInView(haveQuantity, consumedQuantity);
 		}
 	}
 
@@ -272,7 +101,7 @@ public class MainActivity extends Activity implements
 	public void onPurchaseResponseAlreadyEntitled(String userId, String sku) {
 		// This will not be called for consumables
 		Log.i(TAG, "onPurchaseResponseAlreadyEntitled: for userId (" + userId
-				+ ") sku ("+sku+")");
+				+ ") sku (" + sku + ")");
 	}
 
 	/**
@@ -285,7 +114,8 @@ public class MainActivity extends Activity implements
 	 */
 	@Override
 	public void onPurchaseResponseInvalidSKU(String userId, String sku) {
-		Log.i(TAG, "onPurchaseResponseInvalidSKU: for userId (" + userId + ") sku ("+sku+")");
+		Log.i(TAG, "onPurchaseResponseInvalidSKU: for userId (" + userId
+				+ ") sku (" + sku + ")");
 	}
 
 	/**
@@ -298,7 +128,7 @@ public class MainActivity extends Activity implements
 	@Override
 	public void onPurchaseResponseFailed(String requestId, String sku) {
 		Log.i(TAG, "onPurchaseResponseFailed: for requestId (" + requestId
-				+ ") sku ("+sku+")");
+				+ ") sku (" + sku + ")");
 	}
 
 	/**
@@ -339,24 +169,44 @@ public class MainActivity extends Activity implements
 	 * @param requestId
 	 */
 	public void onPurchaseUpdatesResponseFailed(String requestId) {
-		 // Not called for consumables
+		// Not called for consumables
 		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
 				+ requestId + ")");
 	}
 
-	// ///////////////////////////////////////////////////////////////////////////////////////
-	// ////////////////////////// Application specific code below
-	// ////////////////////////////
-	// ///////////////////////////////////////////////////////////////////////////////////////
+	// ===========================================================
+	// Methods
+	// ===========================================================
 
-	private static final String TAG = "SampleIAPConsumablesApp";
-	protected Handler guiThreadHandler;
+	/**
+	 * Click handler called when user clicks button to buy an orange consumable.
+	 * This method calls
+	 * {@link PurchasingManager#initiatePurchaseRequest(String)} with the SKU
+	 * for the orange consumable.
+	 */
+	public void onBuyOrangeClick(View view) {
+		String requestId = PurchasingManager
+				.initiatePurchaseRequest(MySKU.ORANGE.getSku());
+		PurchaseData purchaseData = purchaseDataStorage
+				.newPurchaseData(requestId);
+		Log.i(TAG, "onBuyOrangeClick: requestId (" + requestId
+				+ ") requestState (" + purchaseData.getRequestState() + ")");
+	}
 
-	protected Button buyOrangeButton;
-	protected Button eatOrangeButton;
+	/**
+	 * Click handler called when user clicks button to eat an orange consumable.
+	 */
+	public void onEatOrangeClick(View view) {
+		String sku = MySKU.ORANGE.getSku();
 
-	protected TextView numOranges;
-	protected TextView numOrangesConsumed;
+		SKUData skuData = purchaseDataStorage.getSKUData(sku);
+		Log.i(TAG, "onEatOrangeClick: consuming 1 orange");
+		skuData.consume(1);
+		purchaseDataStorage.saveSKUData(skuData);
+
+		updateOrangesInView(skuData.getHaveQuantity(),
+				skuData.getConsumedQuantity());
+	}
 
 	/**
 	 * Setup application specific things, called from onCreate()
@@ -400,14 +250,14 @@ public class MainActivity extends Activity implements
 	private void disableBuyOrangeButton() {
 		buyOrangeButton.setEnabled(false);
 	}
-	
+
 	/**
 	 * Enable "Buy Orange" button
 	 */
 	private void enableBuyOrangeButton() {
 		buyOrangeButton.setEnabled(true);
 	}
-	
+
 	/**
 	 * Update view with how many oranges I have.
 	 * 
@@ -450,4 +300,30 @@ public class MainActivity extends Activity implements
 			}
 		});
 	}
+
+	// ===========================================================
+	// Getter & Setter
+	// ===========================================================
+
+	// ===========================================================
+	// Inner and Anonymous Classes
+	// ===========================================================
+
+	IInAppBilling.OnItemSkuAvailableListener mOnItemSkuAvailableListener = new OnItemSkuAvailableListener() {
+
+		@Override
+		public void onItemSkuAvailable(String sku) {
+			if (MySKU.ORANGE.getSku().equals(sku)) {
+				enableBuyOrangeButton();
+			}
+		}
+	};
+
+	IInAppBilling.OnItemSkuUnavailableListener mOnItemSkuUnavailableListener = new OnItemSkuUnavailableListener() {
+
+		@Override
+		public void onItemSkuUnavailable(Set<String> unavailableSkus) {
+			disableButtonsForUnavailableSkus(unavailableSkus);
+		}
+	};
 }

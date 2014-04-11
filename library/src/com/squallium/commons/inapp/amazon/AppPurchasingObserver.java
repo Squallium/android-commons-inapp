@@ -155,11 +155,11 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 	/**
 	 * This is callback for
-	 * {@link PurchasingManager#initiatePurchaseUpdatesRequest}. 
+	 * {@link PurchasingManager#initiatePurchaseUpdatesRequest}.
 	 * 
-	 * For consumables we do not receive any info through this callback.
-	 * We just need to call {@link PurchasingManager#initiatePurchaseUpdatesRequest} 
-	 * to ensure we received the callback in onPurchaseResponse. 
+	 * For consumables we do not receive any info through this callback. We just
+	 * need to call {@link PurchasingManager#initiatePurchaseUpdatesRequest} to
+	 * ensure we received the callback in onPurchaseResponse.
 	 */
 	@Override
 	public void onPurchaseUpdatesResponse(PurchaseUpdatesResponse response) {
@@ -195,7 +195,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 		PurchaseData purchaseDataForRequestId = null;
 		String sku = null;
-		
+
 		switch (status) {
 		case SUCCESSFUL:
 			Receipt receipt = response.getReceipt();
@@ -223,12 +223,14 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 			break;
 		case ALREADY_ENTITLED:
-			Log.i(TAG, "onPurchaseResponse: already entitled, should never get here for a consumable.");
+			Log.i(TAG,
+					"onPurchaseResponse: already entitled, should never get here for a consumable.");
 			// Should never get here for a consumable
-			purchaseDataForRequestId = purchaseDataStorage.getPurchaseData(requestId);
+			purchaseDataForRequestId = purchaseDataStorage
+					.getPurchaseData(requestId);
 			purchaseDataStorage.removePurchaseData(requestId);
-		    if (purchaseDataForRequestId!=null) 
-		        sku = purchaseDataForRequestId.getSKU();
+			if (purchaseDataForRequestId != null)
+				sku = purchaseDataForRequestId.getSKU();
 			listener.onPurchaseResponseAlreadyEntitled(userId, sku);
 			break;
 		case INVALID_SKU:
@@ -236,19 +238,21 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 					"onPurchaseResponse: invalid SKU! Should never get here, onItemDataResponse should have disabled buy button already.");
 			// We should never get here because onItemDataResponse should have
 			// taken care of invalid skus already and disabled the buy button
-			purchaseDataForRequestId = purchaseDataStorage.getPurchaseData(requestId);
+			purchaseDataForRequestId = purchaseDataStorage
+					.getPurchaseData(requestId);
 			purchaseDataStorage.removePurchaseData(requestId);
-		    if (purchaseDataForRequestId!=null) 
-		        sku = purchaseDataForRequestId.getSKU();
-		    listener.onPurchaseResponseInvalidSKU(userId, sku);
+			if (purchaseDataForRequestId != null)
+				sku = purchaseDataForRequestId.getSKU();
+			listener.onPurchaseResponseInvalidSKU(userId, sku);
 			break;
 		case FAILED:
 			Log.i(TAG,
 					"onPurchaseResponse: failed so remove purchase request from local storage");
-			purchaseDataForRequestId = purchaseDataStorage.getPurchaseData(requestId);
+			purchaseDataForRequestId = purchaseDataStorage
+					.getPurchaseData(requestId);
 			purchaseDataStorage.removePurchaseData(requestId);
-		    if (purchaseDataForRequestId!=null) 
-		        sku = purchaseDataForRequestId.getSKU();
+			if (purchaseDataForRequestId != null)
+				sku = purchaseDataForRequestId.getSKU();
 			listener.onPurchaseResponseFailed(requestId, sku);
 			// May want to retry request
 			break;
@@ -411,11 +415,11 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 			MySKU mySKU = MySKU.valueForSKU(sku);
 			SKUData skuData = getOrCreateSKUData(sku);
 			skuData.addFulfilledQuantity(mySKU.getQuantity());
-			
+
 			Log.i(TAG,
 					"skuFulfilledQuantityUp: fulfilledQuantity increased to ("
-							+ skuData.getFulfilledQuantity() + ") for sku (" + sku
-							+ "), save SKU data");
+							+ skuData.getFulfilledQuantity() + ") for sku ("
+							+ sku + "), save SKU data");
 			saveSKUData(skuData);
 		}
 
@@ -431,13 +435,13 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 							+ ") setting requestState to ("
 							+ purchaseData.getRequestState() + ")");
 		}
-		
+
 		/**
 		 * Check if requestId state is SENT
 		 */
 		public boolean isRequestStateSent(String requestId) {
 			PurchaseData purchaseData = getPurchaseData(requestId);
-			if (purchaseData==null)
+			if (purchaseData == null)
 				return false;
 			return RequestState.SENT == purchaseData.getRequestState();
 		}
@@ -465,8 +469,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 		/**
 		 * Adds requestId to list of saved requestIds, creates new
-		 * {@link PurchaseData} for requestId and sets request
-		 * state to SENT
+		 * {@link PurchaseData} for requestId and sets request state to SENT
 		 */
 		public PurchaseData newPurchaseData(String requestId) {
 			addRequestId(requestId);
@@ -506,8 +509,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		/**
 		 * Get PurchaseResponse data by requestId
 		 */
-		public PurchaseData getPurchaseData(
-				String requestId) {
+		public PurchaseData getPurchaseData(String requestId) {
 			String json = getString(requestId);
 			if (json == null)
 				return null;
@@ -517,8 +519,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		/**
 		 * Get PurchaseResponse data by purchaseToken
 		 */
-		public PurchaseData getPurchaseDataByPurchaseToken(
-				String purchaseToken) {
+		public PurchaseData getPurchaseDataByPurchaseToken(String purchaseToken) {
 			String json = getString(purchaseToken);
 			if (json == null)
 				return null;
@@ -553,13 +554,13 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 				return null;
 			return SKUDataJSON.fromJSON(json);
 		}
-		
+
 		/**
 		 * Gets or Creates new {@link SKUData} from SharedPreferences by sku
 		 */
 		public SKUData getOrCreateSKUData(String sku) {
 			SKUData skuData = getSKUData(sku);
-			if (skuData==null) {
+			if (skuData == null) {
 				skuData = newSKUData(sku);
 			}
 			return skuData;
@@ -627,17 +628,19 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		 */
 		protected Set<String> getStringSet(String key, Set<String> defValues) {
 			savedUserRequestsAndPurchaseReceipts = getSavedUserRequestsAndPurchaseReceipts();
-			// If you're only targeting devices with Android API Level 11 or above
+			// If you're only targeting devices with Android API Level 11 or
+			// above
 			// you can just use the getStringSet method
 			String pipeDelimitedValues = getString(key);
 			return convertPipeDelimitedToList(pipeDelimitedValues);
 		}
-		
-		private Set<String> convertPipeDelimitedToList(String pipeDelimitedValues) {
+
+		private Set<String> convertPipeDelimitedToList(
+				String pipeDelimitedValues) {
 			Set<String> result = new HashSet<String>();
-			if (pipeDelimitedValues==null || "".equals(pipeDelimitedValues))
+			if (pipeDelimitedValues == null || "".equals(pipeDelimitedValues))
 				return result;
-			
+
 			StringTokenizer stk = new StringTokenizer(pipeDelimitedValues, "|");
 			while (stk.hasMoreTokens()) {
 				String token = stk.nextToken();
@@ -651,15 +654,16 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		 */
 		protected void putStringSet(String key, Set<String> valuesSet) {
 			Editor editor = savedUserRequestsAndPurchaseReceipts.edit();
-			// If you're only targeting devices with Android API Level 11 or above
-	        // you can just use the putStringSet method
+			// If you're only targeting devices with Android API Level 11 or
+			// above
+			// you can just use the putStringSet method
 			String pipeDelimitedValues = convertListToPipeDelimited(valuesSet);
 			editor.putString(key, pipeDelimitedValues);
 			editor.apply();
 		}
-		
+
 		private String convertListToPipeDelimited(Set<String> values) {
-			if (values==null || values.isEmpty())
+			if (values == null || values.isEmpty())
 				return "";
 			StringBuilder result = new StringBuilder();
 			for (Iterator<String> iter = values.iterator(); iter.hasNext();) {
@@ -823,8 +827,8 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 		@Override
 		public String toString() {
-			return "PurchaseData [requestId=" + requestId
-					+ ", userId=" + userId + ", requestState=" + requestState
+			return "PurchaseData [requestId=" + requestId + ", userId="
+					+ userId + ", requestState=" + requestState
 					+ ", purchaseToken=" + purchaseToken + ", sku=" + sku
 					+ ", purchaseTokenFulfilled=" + purchaseTokenFulfilled
 					+ "]";
@@ -833,8 +837,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 	}
 
 	/**
-	 * Used to serialize {@link PurchaseData} into JSON and back
-	 * again.
+	 * Used to serialize {@link PurchaseData} into JSON and back again.
 	 */
 	protected static class PurchaseDataJSON {
 
@@ -866,8 +869,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		}
 
 		/**
-		 * Deserializes JSON string back into PurchaseData
-		 * object.
+		 * Deserializes JSON string back into PurchaseData object.
 		 */
 		public static PurchaseData fromJSON(String json) {
 			if (json == null)
@@ -882,8 +884,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 				boolean purchaseTokenFulfilled = obj
 						.optBoolean(PURCHASE_TOKEN_FULFILLED);
 
-				PurchaseData result = new PurchaseData(
-						requestId);
+				PurchaseData result = new PurchaseData(requestId);
 				result.setRequestState(RequestState.valueOf(requestState));
 				result.setPurchaseToken(purchaseToken);
 				result.setSKU(sku);
@@ -945,14 +946,13 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		public void consume(int quantity) {
 			this.consumedQuantity = this.consumedQuantity + quantity;
 		}
-		
+
 		@Override
 		public String toString() {
 			return "SKUData [sku=" + sku + ", fulfilledQuantity="
 					+ fulfilledQuantity + ", consumedQuantity="
 					+ consumedQuantity + "]";
 		}
-
 
 	}
 
@@ -1014,8 +1014,8 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		private final Set<Receipt> receipts;
 		private final Set<String> revokedSkus;
 
-		public PurchaseUpdatesData(String userId,
-				Set<Receipt> receipts, Set<String> revokedSkus) {
+		public PurchaseUpdatesData(String userId, Set<Receipt> receipts,
+				Set<String> revokedSkus) {
 			this.userId = userId;
 			this.receipts = receipts;
 			this.revokedSkus = revokedSkus;
@@ -1035,9 +1035,8 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 		@Override
 		public String toString() {
-			return "PurchaseUpdatesData [userId=" + userId
-					+ ", receipts=" + receipts + ", revokedSkus=" + revokedSkus
-					+ "]";
+			return "PurchaseUpdatesData [userId=" + userId + ", receipts="
+					+ receipts + ", revokedSkus=" + revokedSkus + "]";
 		}
 
 	}
