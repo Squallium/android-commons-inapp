@@ -12,6 +12,8 @@ import com.amazon.inapp.purchasing.GetUserIdResponse;
 import com.amazon.inapp.purchasing.GetUserIdResponse.GetUserIdRequestStatus;
 import com.amazon.inapp.purchasing.Item;
 import com.amazon.inapp.purchasing.ItemDataResponse.ItemDataRequestStatus;
+import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
+import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseData;
@@ -35,11 +37,13 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 
 	// Wrapper around SharedPreferences to save request state
 	// and purchase receipt data
-	protected PurchaseDataStorage purchaseDataStorage;
+	private PurchaseDataStorage purchaseDataStorage;
 
 	private OnItemSkuAvailableListener onItemSkuAvailableListener;
 
 	private OnItemSkuUnavailableListener onItemSkuUnavailableListener;
+
+	private IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener;
 
 	// ===========================================================
 	// Constructors
@@ -52,6 +56,9 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		// Setup listeners
+		setupIAPListeners();
 
 		// Setaup de In-App process
 		setupIAPOnCreate();
@@ -81,38 +88,6 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	public void customOnActivityResult(int requestCode, int resultCode,
 			Intent data) {
 
-	}
-
-	// ===========================================================
-	// Methods
-	// ===========================================================
-
-	/**
-	 * Setup for IAP SDK called from onCreate. Sets up
-	 * {@link PurchaseDataStorage} for storing purchase receipt data,
-	 * {@link AppPurchasingObserver} for listening to IAP API callbacks and sets
-	 * up this activity as a {@link AppPurchasingObserverListener} to listen for
-	 * callbacks from the {@link AppPurchasingObserver}.
-	 */
-	private void setupIAPOnCreate() {
-		purchaseDataStorage = new PurchaseDataStorage(this);
-
-		AppPurchasingObserver purchasingObserver = new AppPurchasingObserver(
-				this, purchaseDataStorage);
-		purchasingObserver.setListener(this);
-
-		Log.i(TAG, "onCreate: registering AppPurchasingObserver");
-		PurchasingManager.registerObserver(purchasingObserver);
-	}
-
-	/**
-	 * Return the SKUData from the purchaseDataStorage
-	 * 
-	 * @param sku
-	 * @return
-	 */
-	protected SKUData getSKUData(String sku) {
-		return purchaseDataStorage.getSKUData(sku);
 	}
 
 	/**
@@ -210,7 +185,7 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 			Item item = entry.getValue();
 			Log.i(TAG, "onItemDataResponseSuccessful: sku (" + sku + ") item ("
 					+ item + ")");
-			if(onItemSkuAvailableListener != null){
+			if (onItemSkuAvailableListener != null) {
 				onItemSkuAvailableListener.onItemSkuAvailable(sku);
 			}
 		}
@@ -226,7 +201,7 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	@Override
 	public void onItemDataResponseSuccessfulWithUnavailableSkus(
 			Set<String> unavailableSkus) {
-		if(onItemSkuUnavailableListener != null){
+		if (onItemSkuUnavailableListener != null) {
 			onItemSkuUnavailableListener.onItemSkuUnavailable(unavailableSkus);
 		}
 	}
@@ -241,6 +216,202 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	public void onItemDataResponseFailed(String requestId) {
 		Log.i(TAG, "onItemDataResponseFailed: for requestId (" + requestId
 				+ ")");
+	}
+
+	/**
+	 * Callback on successful purchase of SKU. In this sample app, we show level
+	 * 2 as enabled
+	 * 
+	 * @param sku
+	 */
+	@Override
+	public void onPurchaseResponseSuccess(String userId, String sku,
+			String purchaseToken) {
+		Log.i(TAG, "onPurchaseResponseSuccess: for userId (" + userId
+				+ ") sku (" + sku + ")");
+		SKUData skuData = getSKUData(sku);
+		if (skuData == null)
+			return;
+
+		// Call the callback if exists
+		if (onPurchaseFinishedListener != null) {
+			onPurchaseFinishedListener.onPurchaseSuccess(null, sku);
+		}
+	}
+
+	/**
+	 * Callback when user is already entitled
+	 * {@link PurchaseRequestStatus#ALREADY_ENTITLED} to sku passed into
+	 * initiatePurchaseRequest.
+	 * 
+	 * @param userId
+	 */
+	@Override
+	public void onPurchaseResponseAlreadyEntitled(String userId, String sku) {
+		// This will not be called for consumables
+		Log.i(TAG, "onPurchaseResponseAlreadyEntitled: for userId (" + userId
+				+ ") sku (" + sku + ")");
+	}
+
+	/**
+	 * Callback when sku passed into
+	 * {@link PurchasingManager#initiatePurchaseRequest} is not valid
+	 * {@link PurchaseRequestStatus#INVALID_SKU}.
+	 * 
+	 * @param userId
+	 * @param sku
+	 */
+	@Override
+	public void onPurchaseResponseInvalidSKU(String userId, String sku) {
+		String message = "onPurchaseResponseInvalidSKU: for userId (" + userId
+				+ ") sku (" + sku + ")";
+		Log.i(TAG, message);
+		if (onPurchaseFinishedListener != null) {
+			onPurchaseFinishedListener.onPurchaseFailed(null, sku, message);
+		}
+	}
+
+	/**
+	 * Callback on failed purchase response {@link PurchaseRequestStatus#FAILED}
+	 * .
+	 * 
+	 * @param requestId
+	 * @param sku
+	 */
+	@Override
+	public void onPurchaseResponseFailed(String requestId, String sku) {
+		String message = "onPurchaseResponseFailed: for requestId ("
+				+ requestId + ") sku (" + sku + ")";
+		Log.i(TAG, message);
+		if (onPurchaseFinishedListener != null) {
+			onPurchaseFinishedListener.onPurchaseFailed(null, sku, message);
+		}
+	}
+
+	/**
+	 * Callback on successful purchase updates response
+	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for each receipt.
+	 * 
+	 * @param userId
+	 * @param sku
+	 * @param purchaseToken
+	 */
+	@Override
+	public void onPurchaseUpdatesResponseSuccess(String userId, String sku,
+			String purchaseToken) {
+		// Not called for consumables
+		Log.i(TAG, "onPurchaseUpdatesResponseSuccess: for userId (" + userId
+				+ ") sku (" + sku + ") purchaseToken (" + purchaseToken + ")");
+	}
+
+	/**
+	 * Callback on successful purchase updates response
+	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for revoked SKU.
+	 * 
+	 * @param userId
+	 * @param revokedSKU
+	 */
+	@Override
+	public void onPurchaseUpdatesResponseSuccessRevokedSku(String userId,
+			String revokedSku) {
+		// Not called for consumables
+		Log.i(TAG, "onPurchaseUpdatesResponseSuccessRevokedSku: for userId ("
+				+ userId + ")");
+	}
+
+	/**
+	 * Callback on failed purchase updates response
+	 * {@link PurchaseUpdatesRequestStatus#FAILED}
+	 * 
+	 * @param requestId
+	 */
+	@Override
+	public void onPurchaseUpdatesResponseFailed(String requestId) {
+		// Not called for consumables
+		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
+				+ requestId + ")");
+	}
+
+	/**
+	 * You have to setup all de listeners in this method, that will be called
+	 * before setup the inapp amazon billing process
+	 */
+	protected abstract void setupIAPListeners();
+
+	// ===========================================================
+	// Methods
+	// ===========================================================
+
+	/**
+	 * Setup for IAP SDK called from onCreate. Sets up
+	 * {@link PurchaseDataStorage} for storing purchase receipt data,
+	 * {@link AppPurchasingObserver} for listening to IAP API callbacks and sets
+	 * up this activity as a {@link AppPurchasingObserverListener} to listen for
+	 * callbacks from the {@link AppPurchasingObserver}.
+	 */
+	private void setupIAPOnCreate() {
+		purchaseDataStorage = new PurchaseDataStorage(this);
+
+		AppPurchasingObserver purchasingObserver = new AppPurchasingObserver(
+				this, purchaseDataStorage);
+		purchasingObserver.setListener(this);
+
+		Log.i(TAG, "onCreate: registering AppPurchasingObserver");
+		PurchasingManager.registerObserver(purchasingObserver);
+	}
+
+	/**
+	 * Method for do the purchase purchase
+	 * 
+	 * @param inAppType
+	 * @param sku
+	 * @param requestCode
+	 * @param mPurchaseFinishedListener
+	 * @param payload
+	 */
+	public void purchase(InAppType inAppType, String sku,
+			IInAppBilling.OnPurchaseFinishedListener pPurchaseFinishedListener) {
+
+		// Set the callback
+		setOnPurchaseFinishedListener(pPurchaseFinishedListener);
+
+		// Lanzamos el proceso de compra
+		switch (inAppType) {
+		case consumable:
+			String requestId = PurchasingManager.initiatePurchaseRequest(sku);
+			PurchaseData purchaseData = purchaseDataStorage
+					.newPurchaseData(requestId);
+			Log.i(TAG, "purchase: requestId (" + requestId + ") requestState ("
+					+ purchaseData.getRequestState() + ")");
+			break;
+		case non_consumable:
+			break;
+		case subscription:
+			break;
+		}
+	}
+
+	/**
+	 * Consume the "quantity" of item identify by the sku
+	 * 
+	 * @param sku
+	 * @param quantity
+	 */
+	public void consumeItem(String sku, int quantity) {
+		SKUData skuData = purchaseDataStorage.getSKUData(sku);
+		Log.i(TAG, "consumeItem: consuming 1 orange");
+		skuData.consume(quantity);
+		purchaseDataStorage.saveSKUData(skuData);
+	}
+
+	/**
+	 * Return the SKUData from the purchaseDataStorage
+	 * 
+	 * @param sku
+	 * @return
+	 */
+	protected SKUData getSKUData(String sku) {
+		return purchaseDataStorage.getSKUData(sku);
 	}
 
 	// ===========================================================
@@ -263,6 +434,15 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	public void setOnItemSkuUnavailableListener(
 			OnItemSkuUnavailableListener onItemSkuUnavailableListener) {
 		this.onItemSkuUnavailableListener = onItemSkuUnavailableListener;
+	}
+
+	public IInAppBilling.OnPurchaseFinishedListener getOnPurchaseFinishedListener() {
+		return onPurchaseFinishedListener;
+	}
+
+	public void setOnPurchaseFinishedListener(
+			IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener) {
+		this.onPurchaseFinishedListener = onPurchaseFinishedListener;
 	}
 
 	// ===========================================================

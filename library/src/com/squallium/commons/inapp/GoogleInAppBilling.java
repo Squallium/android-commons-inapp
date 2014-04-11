@@ -300,13 +300,33 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 			Log.d(TAG, "Purchase finished: " + result + ", purchase: "
 					+ purchase);
 
+			String message = null;
+
 			// if we were disposed of in the meantime, quit.
 			if (mHelper == null)
 				return;
 
+			// Build the generic result object
+			InAppResult inAppResult = new InAppResult();
+			inAppResult.purchase = purchase;
+
+			// check posible errors
+			if (result.isFailure()) {
+				message = "Error purchasing: " + result;
+			}
+			if (!verifyDeveloperPayload(purchase)) {
+				message = "Error purchasing. Authenticity verification failed.";
+			}
+
 			// call the listener
 			if (onPurchaseFinishedListener != null) {
-				onPurchaseFinishedListener.onPurchaseFinished(result, purchase);
+				if (message == null) {
+					onPurchaseFinishedListener.onPurchaseSuccess(inAppResult,
+							purchase.getSku());
+				} else {
+					onPurchaseFinishedListener.onPurchaseFailed(inAppResult,
+							purchase.getSku(), message);
+				}
 			}
 
 			Log.d(TAG, "End purchase finished flow.");

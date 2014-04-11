@@ -1,5 +1,7 @@
 package com.squallium.commons.inapp;
 
+import com.squallium.commons.inapp.google.Purchase;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.util.Log;
@@ -51,6 +53,10 @@ public abstract class InAppBilling extends Activity implements IInAppBilling {
 
 	public enum InAppType {
 		consumable, non_consumable, subscription;
+	}
+
+	public class InAppResult {
+		public Purchase purchase;
 	}
 
 }

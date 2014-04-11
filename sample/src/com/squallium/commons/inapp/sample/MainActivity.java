@@ -255,45 +255,6 @@ public class MainActivity extends GoogleInAppBilling {
 				mPurchaseFinishedListener, payload);
 	}
 
-	// Callback for when a purchase is finished
-	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
-		public void onPurchaseFinished(IabResult result, Purchase purchase) {
-			if (result.isFailure()) {
-				complain("Error purchasing: " + result);
-				setWaitScreen(false);
-				return;
-			}
-			if (!verifyDeveloperPayload(purchase)) {
-				complain("Error purchasing. Authenticity verification failed.");
-				setWaitScreen(false);
-				return;
-			}
-
-			Log.d(TAG, "Purchase successful.");
-
-			if (purchase.getSku().equals(SKU_GAS)) {
-				// bought 1/4 tank of gas. So consume it.
-				Log.d(TAG, "Purchase is gas. Starting gas consumption.");
-				consumeItem(purchase, mConsumeItemListener);
-			} else if (purchase.getSku().equals(SKU_PREMIUM)) {
-				// bought the premium upgrade!
-				Log.d(TAG, "Purchase is premium upgrade. Congratulating user.");
-				alert("Thank you for upgrading to premium!");
-				mIsPremium = true;
-				updateUi();
-				setWaitScreen(false);
-			} else if (purchase.getSku().equals(SKU_INFINITE_GAS)) {
-				// bought the infinite gas subscription
-				Log.d(TAG, "Infinite gas subscription purchased.");
-				alert("Thank you for subscribing to infinite gas!");
-				mSubscribedToInfiniteGas = true;
-				mTank = TANK_MAX;
-				updateUi();
-				setWaitScreen(false);
-			}
-		}
-	};
-
 	// Drive button clicked. Burn gas!
 	public void onDriveButtonClicked(View arg0) {
 		Log.d(TAG, "Drive button clicked.");
@@ -372,6 +333,41 @@ public class MainActivity extends GoogleInAppBilling {
 	// ===========================================================
 	// Inner and Anonymous Classes
 	// ===========================================================
+
+	// Callback for when a purchase is finished
+	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+		public void onPurchaseSuccess(InAppResult inAppResult, String sku) {
+
+			Log.d(TAG, "Purchase successful.");
+			if (sku.equals(SKU_GAS)) {
+				// bought 1/4 tank of gas. So consume it.
+				Log.d(TAG, "Purchase is gas. Starting gas consumption.");
+				consumeItem(inAppResult.purchase, mConsumeItemListener);
+			} else if (sku.equals(SKU_PREMIUM)) {
+				// bought the premium upgrade!
+				Log.d(TAG, "Purchase is premium upgrade. Congratulating user.");
+				alert("Thank you for upgrading to premium!");
+				mIsPremium = true;
+				updateUi();
+				setWaitScreen(false);
+			} else if (sku.equals(SKU_INFINITE_GAS)) {
+				// bought the infinite gas subscription
+				Log.d(TAG, "Infinite gas subscription purchased.");
+				alert("Thank you for subscribing to infinite gas!");
+				mSubscribedToInfiniteGas = true;
+				mTank = TANK_MAX;
+				updateUi();
+				setWaitScreen(false);
+			}
+		}
+
+		public void onPurchaseFailed(InAppResult inAppResult, String sku,
+				String message) {
+			complain(message);
+			setWaitScreen(false);
+		}
+
+	};
 
 	// Called when consumption is complete
 	IInAppBilling.OnConsumeItemListener mConsumeItemListener = new IInAppBilling.OnConsumeItemListener() {

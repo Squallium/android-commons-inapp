@@ -1,7 +1,5 @@
 package com.squallium.commons.inapp.sample.az;
 
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import android.os.Bundle;
@@ -11,14 +9,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.amazon.inapp.purchasing.Item;
-import com.amazon.inapp.purchasing.ItemDataResponse.ItemDataRequestStatus;
-import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
-import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
 import com.squallium.commons.inapp.AmazonInAppBilling;
 import com.squallium.commons.inapp.IInAppBilling;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseData;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.SKUData;
 import com.squallium.commons.inapp.amazon.MySKU;
 import com.squallium.commons.inapp.sample.R;
@@ -62,116 +55,10 @@ public class MainActivity extends AmazonInAppBilling {
 		setupApplicationSpecificOnCreate();
 	}
 
-	/**
-	 * Callback on successful purchase of SKU. In this sample app, we show level
-	 * 2 as enabled
-	 * 
-	 * @param sku
-	 */
 	@Override
-	public void onPurchaseResponseSuccess(String userId, String sku,
-			String purchaseToken) {
-		Log.i(TAG, "onPurchaseResponseSuccess: for userId (" + userId
-				+ ") sku (" + sku + ")");
-		SKUData skuData = getSKUData(sku);
-		if (skuData == null)
-			return;
-
-		if (MySKU.ORANGE.getSku().equals(skuData.getSKU())) {
-
-			final int haveQuantity = skuData.getHaveQuantity();
-			final int consumedQuantity = skuData.getConsumedQuantity();
-
-			Log.i(TAG,
-					"onGetUserIdResponseSuccessful: call updateOrangesInView, have ("
-							+ haveQuantity + ") oranges and consumed ("
-							+ consumedQuantity + ") oranges");
-			updateOrangesInView(haveQuantity, consumedQuantity);
-		}
-	}
-
-	/**
-	 * Callback when user is already entitled
-	 * {@link PurchaseRequestStatus#ALREADY_ENTITLED} to sku passed into
-	 * initiatePurchaseRequest.
-	 * 
-	 * @param userId
-	 */
-	@Override
-	public void onPurchaseResponseAlreadyEntitled(String userId, String sku) {
-		// This will not be called for consumables
-		Log.i(TAG, "onPurchaseResponseAlreadyEntitled: for userId (" + userId
-				+ ") sku (" + sku + ")");
-	}
-
-	/**
-	 * Callback when sku passed into
-	 * {@link PurchasingManager#initiatePurchaseRequest} is not valid
-	 * {@link PurchaseRequestStatus#INVALID_SKU}.
-	 * 
-	 * @param userId
-	 * @param sku
-	 */
-	@Override
-	public void onPurchaseResponseInvalidSKU(String userId, String sku) {
-		Log.i(TAG, "onPurchaseResponseInvalidSKU: for userId (" + userId
-				+ ") sku (" + sku + ")");
-	}
-
-	/**
-	 * Callback on failed purchase response {@link PurchaseRequestStatus#FAILED}
-	 * .
-	 * 
-	 * @param requestId
-	 * @param sku
-	 */
-	@Override
-	public void onPurchaseResponseFailed(String requestId, String sku) {
-		Log.i(TAG, "onPurchaseResponseFailed: for requestId (" + requestId
-				+ ") sku (" + sku + ")");
-	}
-
-	/**
-	 * Callback on successful purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for each receipt.
-	 * 
-	 * @param userId
-	 * @param sku
-	 * @param purchaseToken
-	 */
-	@Override
-	public void onPurchaseUpdatesResponseSuccess(String userId, String sku,
-			String purchaseToken) {
-		// Not called for consumables
-		Log.i(TAG, "onPurchaseUpdatesResponseSuccess: for userId (" + userId
-				+ ") sku (" + sku + ") purchaseToken (" + purchaseToken + ")");
-	}
-
-	/**
-	 * Callback on successful purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for revoked SKU.
-	 * 
-	 * @param userId
-	 * @param revokedSKU
-	 */
-	@Override
-	public void onPurchaseUpdatesResponseSuccessRevokedSku(String userId,
-			String revokedSku) {
-		// Not called for consumables
-		Log.i(TAG, "onPurchaseUpdatesResponseSuccessRevokedSku: for userId ("
-				+ userId + ")");
-	}
-
-	/**
-	 * Callback on failed purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#FAILED}
-	 * 
-	 * @param requestId
-	 */
-	public void onPurchaseUpdatesResponseFailed(String requestId) {
-		// Not called for consumables
-		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
-				+ requestId + ")");
+	protected void setupIAPListeners() {
+		setOnItemSkuAvailableListener(mOnItemSkuAvailableListener);
+		setOnItemSkuUnavailableListener(mOnItemSkuUnavailableListener);
 	}
 
 	// ===========================================================
@@ -185,25 +72,16 @@ public class MainActivity extends AmazonInAppBilling {
 	 * for the orange consumable.
 	 */
 	public void onBuyOrangeClick(View view) {
-		String requestId = PurchasingManager
-				.initiatePurchaseRequest(MySKU.ORANGE.getSku());
-		PurchaseData purchaseData = purchaseDataStorage
-				.newPurchaseData(requestId);
-		Log.i(TAG, "onBuyOrangeClick: requestId (" + requestId
-				+ ") requestState (" + purchaseData.getRequestState() + ")");
+		// Launch de purchase flow
+		purchase(InAppType.consumable, MySKU.ORANGE.getSku(), null);
 	}
 
 	/**
 	 * Click handler called when user clicks button to eat an orange consumable.
 	 */
 	public void onEatOrangeClick(View view) {
-		String sku = MySKU.ORANGE.getSku();
-
-		SKUData skuData = purchaseDataStorage.getSKUData(sku);
-		Log.i(TAG, "onEatOrangeClick: consuming 1 orange");
-		skuData.consume(1);
-		purchaseDataStorage.saveSKUData(skuData);
-
+		consumeItem(MySKU.ORANGE.getSku(), 1);
+		SKUData skuData = getSKUData(MySKU.ORANGE.getSku());
 		updateOrangesInView(skuData.getHaveQuantity(),
 				skuData.getConsumedQuantity());
 	}
@@ -324,6 +202,28 @@ public class MainActivity extends AmazonInAppBilling {
 		@Override
 		public void onItemSkuUnavailable(Set<String> unavailableSkus) {
 			disableButtonsForUnavailableSkus(unavailableSkus);
+		}
+	};
+
+	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+		public void onPurchaseSuccess(InAppResult inAppResult, String sku) {
+			SKUData skuData = getSKUData(sku);
+			if (MySKU.ORANGE.getSku().equals(skuData.getSKU())) {
+
+				final int haveQuantity = skuData.getHaveQuantity();
+				final int consumedQuantity = skuData.getConsumedQuantity();
+
+				Log.i(TAG,
+						"onGetUserIdResponseSuccessful: call updateOrangesInView, have ("
+								+ haveQuantity + ") oranges and consumed ("
+								+ consumedQuantity + ") oranges");
+				updateOrangesInView(haveQuantity, consumedQuantity);
+			}
+		}
+
+		@Override
+		public void onPurchaseFailed(InAppResult arg0, String arg1, String arg2) {
+
 		}
 	};
 }

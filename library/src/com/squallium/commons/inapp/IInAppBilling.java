@@ -4,6 +4,7 @@ import java.util.Set;
 
 import android.content.Intent;
 
+import com.squallium.commons.inapp.InAppBilling.InAppResult;
 import com.squallium.commons.inapp.google.IabResult;
 import com.squallium.commons.inapp.google.Purchase;
 
@@ -49,7 +50,16 @@ public interface IInAppBilling {
 		 * @param info
 		 *            The purchase information (null if purchase failed)
 		 */
-		public void onPurchaseFinished(IabResult result, Purchase purchase);
+		public void onPurchaseSuccess(InAppResult inAppResult, String sku);
+
+		/**
+		 * Called when ocurrs any error during the purchase
+		 * 
+		 * @param result
+		 * @param message
+		 */
+		public void onPurchaseFailed(InAppResult inAppResult, String sku,
+				String message);
 	}
 
 	/**
