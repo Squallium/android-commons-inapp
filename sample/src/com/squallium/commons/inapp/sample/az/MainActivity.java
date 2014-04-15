@@ -9,9 +9,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.amazon.inapp.purchasing.PurchasingManager;
 import com.squallium.commons.inapp.AmazonInAppBilling;
 import com.squallium.commons.inapp.IInAppBilling;
+import com.squallium.commons.inapp.InAppBilling;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.SKUData;
 import com.squallium.commons.inapp.amazon.MySKU;
 import com.squallium.commons.inapp.sample.R;
@@ -68,8 +68,8 @@ public class MainActivity extends AmazonInAppBilling {
 	/**
 	 * Click handler called when user clicks button to buy an orange consumable.
 	 * This method calls
-	 * {@link PurchasingManager#initiatePurchaseRequest(String)} with the SKU
-	 * for the orange consumable.
+	 * {@link AmazonInAppBilling#purchasepurchase(InAppBilling.InAppType, String, IInAppBilling.OnPurchaseFinishedListener)}
+	 * with the SKU for the orange consumable.
 	 */
 	public void onBuyOrangeClick(View view) {
 		// Launch de purchase flow
