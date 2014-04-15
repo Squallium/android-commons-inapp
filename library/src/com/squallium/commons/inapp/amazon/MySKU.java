@@ -1,25 +1,22 @@
 package com.squallium.commons.inapp.amazon;
 
-import java.util.HashSet;
-import java.util.Set;
+import com.squallium.commons.inapp.InAppBilling.InAppType;
 
-public enum MySKU {
+public class MySKU {
 
-	ORANGE("com.amazon.sample.iap.consumable.orange", 1);
-
+	private InAppType inAppType;
 	private String sku;
 	private int quantity;
 
-	private MySKU(String sku, int quantity) {
+	public MySKU(InAppType inAppType, String sku) {
+		this.inAppType = inAppType;
 		this.sku = sku;
-		this.quantity = quantity;
+		this.quantity = 0;
 	}
 
-	public static MySKU valueForSKU(String sku) {
-		if (ORANGE.getSku().equals(sku)) {
-			return ORANGE;
-		}
-		return null;
+	public MySKU(InAppType inAppType, String sku, int quantity) {
+		this(inAppType, sku);
+		this.quantity = quantity;
 	}
 
 	public String getSku() {
@@ -30,13 +27,11 @@ public enum MySKU {
 		return quantity;
 	}
 
-	private static Set<String> SKUS = new HashSet<String>();
-	static {
-		SKUS.add(ORANGE.getSku());
+	public InAppType getInAppType() {
+		return inAppType;
 	}
 
-	public static Set<String> getAll() {
-		return SKUS;
+	public void setInAppType(InAppType inAppType) {
+		this.inAppType = inAppType;
 	}
-
 }

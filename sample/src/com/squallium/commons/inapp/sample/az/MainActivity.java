@@ -12,6 +12,8 @@ import android.widget.TextView;
 import com.squallium.commons.inapp.AmazonInAppBilling;
 import com.squallium.commons.inapp.IInAppBilling;
 import com.squallium.commons.inapp.InAppBilling;
+import com.squallium.commons.inapp.InAppBillingManager;
+import com.squallium.commons.inapp.InAppBillingManager.Store;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.SKUData;
 import com.squallium.commons.inapp.amazon.MySKU;
 import com.squallium.commons.inapp.sample.R;
@@ -23,6 +25,8 @@ public class MainActivity extends AmazonInAppBilling {
 	// ===========================================================
 
 	private static final String TAG = "SampleIAPConsumablesApp";
+
+	private static final String ORANGE = "com.amazon.sample.iap.consumable.orange";
 
 	// ===========================================================
 	// Fields
@@ -56,9 +60,16 @@ public class MainActivity extends AmazonInAppBilling {
 	}
 
 	@Override
+	protected void setupIAPSkus() {
+		InAppBillingManager.getInstance(Store.amazon).addSku(
+				new MySKU(InAppType.consumable, ORANGE, 1));
+	}
+
+	@Override
 	protected void setupIAPListeners() {
 		setOnItemSkuAvailableListener(mOnItemSkuAvailableListener);
 		setOnItemSkuUnavailableListener(mOnItemSkuUnavailableListener);
+		setOnPurchaseFinishedListener(mPurchaseFinishedListener);
 	}
 
 	// ===========================================================
@@ -73,16 +84,15 @@ public class MainActivity extends AmazonInAppBilling {
 	 */
 	public void onBuyOrangeClick(View view) {
 		// Launch de purchase flow
-		purchase(InAppType.consumable, MySKU.ORANGE.getSku(),
-				mPurchaseFinishedListener);
+		purchase(InAppType.consumable, ORANGE, mPurchaseFinishedListener);
 	}
 
 	/**
 	 * Click handler called when user clicks button to eat an orange consumable.
 	 */
 	public void onEatOrangeClick(View view) {
-		consumeItem(MySKU.ORANGE.getSku(), 1);
-		SKUData skuData = getSKUData(MySKU.ORANGE.getSku());
+		consumeItem(ORANGE, 1);
+		SKUData skuData = getSKUData(ORANGE);
 		updateOrangesInView(skuData.getHaveQuantity(),
 				skuData.getConsumedQuantity());
 	}
@@ -112,10 +122,11 @@ public class MainActivity extends AmazonInAppBilling {
 	 */
 	protected void disableButtonsForUnavailableSkus(Set<String> unavailableSkus) {
 		for (String unavailableSku : unavailableSkus) {
-			if (!MySKU.getAll().contains(unavailableSku))
+			if (!InAppBillingManager.getInstance(Store.amazon).getAllSkus()
+					.contains(unavailableSku))
 				continue;
 
-			if (MySKU.ORANGE.getSku().equals(unavailableSku)) {
+			if (ORANGE.equals(unavailableSku)) {
 				Log.i(TAG,
 						"disableButtonsForUnavailableSkus: disabling buyOrangeButton");
 				disableBuyOrangeButton();
@@ -192,7 +203,7 @@ public class MainActivity extends AmazonInAppBilling {
 
 		@Override
 		public void onItemSkuAvailable(String sku) {
-			if (MySKU.ORANGE.getSku().equals(sku)) {
+			if (ORANGE.equals(sku)) {
 				enableBuyOrangeButton();
 			}
 		}
@@ -209,7 +220,7 @@ public class MainActivity extends AmazonInAppBilling {
 	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
 		public void onPurchaseSuccess(InAppResult inAppResult, String sku) {
 			SKUData skuData = getSKUData(sku);
-			if (MySKU.ORANGE.getSku().equals(skuData.getSKU())) {
+			if (ORANGE.equals(skuData.getSKU())) {
 
 				final int haveQuantity = skuData.getHaveQuantity();
 				final int consumedQuantity = skuData.getConsumedQuantity();
@@ -227,4 +238,5 @@ public class MainActivity extends AmazonInAppBilling {
 
 		}
 	};
+
 }

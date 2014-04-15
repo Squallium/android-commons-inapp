@@ -15,12 +15,12 @@ import com.amazon.inapp.purchasing.ItemDataResponse.ItemDataRequestStatus;
 import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
 import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
+import com.squallium.commons.inapp.InAppBillingManager.Store;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseData;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseDataStorage;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserver.SKUData;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserverListener;
-import com.squallium.commons.inapp.amazon.MySKU;
 
 public abstract class AmazonInAppBilling extends InAppBilling implements
 		AppPurchasingObserverListener {
@@ -57,6 +57,9 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
+		// Setup skus
+		setupIAPSkus();
+
 		// Setup listeners
 		setupIAPListeners();
 
@@ -78,10 +81,10 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		PurchasingManager.initiateGetUserIdRequest();
 
 		// Callback onItemDataResponse...()
-		Log.i(TAG,
-				"onResume: call initiateItemDataRequest for skus: "
-						+ MySKU.getAll());
-		PurchasingManager.initiateItemDataRequest(MySKU.getAll());
+		Log.i(TAG, "onResume: call initiateItemDataRequest for skus: "
+				+ InAppBillingManager.getInstance(Store.amazon).getAllSkus());
+		PurchasingManager.initiateItemDataRequest(InAppBillingManager
+				.getInstance(Store.amazon).getAllSkus());
 	}
 
 	@Override
@@ -331,6 +334,12 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
 				+ requestId + ")");
 	}
+
+	/**
+	 * In this method you must setup the skus of the items using the
+	 * InAppBillingManager
+	 */
+	protected abstract void setupIAPSkus();
 
 	/**
 	 * You have to setup all de listeners in this method, that will be called

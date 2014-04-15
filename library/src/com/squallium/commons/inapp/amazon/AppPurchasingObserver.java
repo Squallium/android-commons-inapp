@@ -23,8 +23,11 @@ import com.amazon.inapp.purchasing.Offset;
 import com.amazon.inapp.purchasing.PurchaseResponse;
 import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
 import com.amazon.inapp.purchasing.PurchaseUpdatesResponse;
+import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
 import com.amazon.inapp.purchasing.Receipt;
+import com.squallium.commons.inapp.InAppBillingManager;
+import com.squallium.commons.inapp.InAppBillingManager.Store;
 
 /**
  * Implementation of {@link BasePurchasingObserver} that implements each of the
@@ -160,15 +163,64 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 	 * For consumables we do not receive any info through this callback. We just
 	 * need to call {@link PurchasingManager#initiatePurchaseUpdatesRequest} to
 	 * ensure we received the callback in onPurchaseResponse.
+	 * 
+	 * For non consumables we check that UserId from
+	 * {@link PurchaseUpdatesResponse} is same as current user. Fire off async
+	 * task to update fulfillments from receipts and revoke fulfillments for
+	 * revoked skus. If there are more updates, call
+	 * {@link PurchasingManager#initiatePurchaseUpdatesRequest} with last
+	 * offset. For a failed response, notify listener through
+	 * {@link AppPurchasingObserverListener#onPurchaseUpdatesResponseFailed}
 	 */
 	@Override
 	public void onPurchaseUpdatesResponse(PurchaseUpdatesResponse response) {
-		Log.i(TAG,
-				"onPurchaseUpdatesResponse: requestId ("
-						+ response.getRequestId()
-						+ ") purchaseUpdatesResponseStatus ("
-						+ response.getPurchaseUpdatesRequestStatus()
-						+ ") userId (" + response.getUserId() + ")");
+		final String userId = response.getUserId();
+		final PurchaseUpdatesRequestStatus status = response
+				.getPurchaseUpdatesRequestStatus();
+
+		Log.i(TAG, "onPurchaseUpdatesResponse: userId (" + userId
+				+ ") purchaseUpdatesRequestStatus (" + status + ")");
+		if (!purchaseDataStorage.isSameAsCurrentUser(userId)) {
+			// In most cases UserId in PurchaseUpdatesResponse should be the
+			// same as UserId from GetUserIdResponse
+			Log.i(TAG, "onPurchaseUpdatesResponse: userId (" + userId
+					+ ") in response is NOT the same as current user!");
+			return;
+		}
+
+		switch (status) {
+		case SUCCESSFUL:
+			// Update fulfillments for receipts
+			// Handle receipts before revoked skus
+			Set<Receipt> receipts = response.getReceipts();
+			Set<String> revokedSkus = response.getRevokedSkus();
+			Log.i(TAG, "onPurchaseUpdatesResponse: (" + receipts.size()
+					+ ") receipts and (" + revokedSkus.size()
+					+ ") revoked SKUs");
+			if (!receipts.isEmpty() || !revokedSkus.isEmpty()) {
+				PurchaseUpdatesData purchaseUpdatesResponseData = new PurchaseUpdatesData(
+						response.getUserId(), receipts, revokedSkus);
+				new PurchaseUpdatesAsyncTask()
+						.execute(purchaseUpdatesResponseData);
+			}
+
+			Offset offset = response.getOffset();
+			// If more updates, send another request with current offset
+			if (response.isMore()) {
+				Log.i(TAG,
+						"onPurchaseUpdatesResponse: more updates, call initiatePurchaseUpdatesRequest with offset: "
+								+ offset);
+				PurchasingManager.initiatePurchaseUpdatesRequest(offset);
+			}
+			purchaseDataStorage.savePurchaseUpdatesOffset(offset);
+			break;
+		case FAILED:
+			Log.i(TAG, "onPurchaseUpdatesResponse: FAILED: response: "
+					+ response);
+			listener.onPurchaseUpdatesResponseFailed(response.getRequestId());
+			// May want to retry request
+			break;
+		}
 	}
 
 	/**
@@ -220,7 +272,6 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 
 			Log.i(TAG, "onPurchaseResponse: fulfill purchase with AsyncTask");
 			new PurchaseResponseSuccessAsyncTask().execute(purchaseData);
-
 			break;
 		case ALREADY_ENTITLED:
 			Log.i(TAG,
@@ -292,6 +343,55 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 			Log.d(TAG,
 					"PurchaseResponseSuccessAsyncTask.doInBackground: completed for requestId ("
 							+ requestId + ")");
+			return true;
+		}
+	}
+
+	/**
+	 * AsyncTask to update fulfillment for purchase called from
+	 * onPurchaseUpdatesResponse. For each receipt, check whether we should
+	 * fulfill and if so, notify listener through
+	 * {@link AppPurchasingObserverListener#onPurchaseUpdatesResponseSuccess}
+	 * method. For each revoked SKU, notify listener through
+	 * {@link AppPurchasingObserverListener#onPurchaseUpdatesResponseSuccessRevokedSku}
+	 * method
+	 */
+	private class PurchaseUpdatesAsyncTask extends
+			AsyncTask<PurchaseUpdatesData, Void, Boolean> {
+		@Override
+		protected Boolean doInBackground(PurchaseUpdatesData... args) {
+			PurchaseUpdatesData purchaseUpdatesData = args[0];
+			String userId = purchaseUpdatesData.getUserId();
+			Set<Receipt> receipts = purchaseUpdatesData.getReceipts();
+			for (Receipt receipt : receipts) {
+				Log.i(TAG,
+						"PurchaseUpdatesAsyncTask.doInBackground: receipt itemType ("
+								+ receipt.getItemType() + ") SKU ("
+								+ receipt.getSku() + ") purchaseToken ("
+								+ receipt.getPurchaseToken() + ")");
+				String sku = receipt.getSku();
+
+				Log.i(TAG,
+						"PurchaseUpdatesAsyncTask.doInBackground: call onPurchaseUpdatesResponseSuccessSku for sku ("
+								+ sku + ")");
+				listener.onPurchaseUpdatesResponseSuccess(userId, sku,
+						receipt.getPurchaseToken());
+
+				Log.i(TAG,
+						"PurchaseUpdatesAsyncTask.doInBackground: completed for receipt with purchaseToken ("
+								+ receipt.getPurchaseToken() + ")");
+			}
+
+			Set<String> revokedSkus = purchaseUpdatesData.getRevokedSkus();
+			for (String revokedSku : revokedSkus) {
+				Log.i(TAG,
+						"PurchaseUpdatesAsyncTask.doInBackground: call onPurchaseUpdatesResponseSuccessRevokedSku for revoked sku ("
+								+ revokedSku + ")");
+				listener.onPurchaseUpdatesResponseSuccessRevokedSku(userId,
+						revokedSku);
+
+				purchaseDataStorage.skuFulfilledCountDown(revokedSku);
+			}
 			return true;
 		}
 	}
@@ -394,8 +494,21 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 							+ purchaseData.getRequestState() + ")");
 			savePurchaseData(purchaseData);
 
-			skuFulfilledQuantityUp(sku);
+			MySKU mySku = InAppBillingManager.getInstance(Store.amazon).getSku(
+					sku);
+			if (mySku != null) {
+				switch (mySku.getInAppType()) {
+				case consumable:
+					skuFulfilledQuantityUp(sku);
+					break;
+				case non_consumable:
+					skuFulfilledCountUp(sku);
+					break;
+				case subscription:
 
+					break;
+				}
+			}
 			return purchaseData;
 		}
 
@@ -411,8 +524,48 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		 * Increment SKU fulfilled count and save. Use this fulfilled count to
 		 * decide whether to fulfill entitlement.
 		 */
+		public void skuFulfilledCountUp(String sku) {
+			SKUData skuData = getOrCreateSKUData(sku);
+			skuData.fulfilledCountUp();
+			Log.i(TAG,
+					"skuFulfilledCountUp: fulfilledCountUp to ("
+							+ skuData.getFulfilledCount() + ") for sku (" + sku
+							+ "), save SKU data");
+			saveSKUData(skuData);
+		}
+
+		/**
+		 * Decrement SKU fulfilled count for revoked SKU and save.
+		 */
+		protected void skuFulfilledCountDown(String revokedSku) {
+			SKUData skuData = getSKUData(revokedSku);
+			if (skuData == null)
+				return;
+			skuData.fulfilledCountDown();
+			Log.i(TAG, "skuFulfilledCountDown: fulfilledCountDown to ("
+					+ skuData.getFulfilledCount() + ") for revoked sku ("
+					+ revokedSku + "), save SKU data");
+			saveSKUData(skuData);
+		}
+
+		/**
+		 * Checks whether we should fulfill for this SKU by checking SKU's
+		 * fulfill count
+		 */
+		public boolean shouldFulfillSKU(String sku) {
+			SKUData skuData = getSKUData(sku);
+			if (skuData == null)
+				return false;
+			return skuData.getFulfilledCount() > 0;
+		}
+
+		/**
+		 * Increment SKU fulfilled count and save. Use this fulfilled count to
+		 * decide whether to fulfill entitlement.
+		 */
 		public void skuFulfilledQuantityUp(String sku) {
-			MySKU mySKU = MySKU.valueForSKU(sku);
+			MySKU mySKU = InAppBillingManager.getInstance(Store.amazon).getSku(
+					sku);
 			SKUData skuData = getOrCreateSKUData(sku);
 			skuData.addFulfilledQuantity(mySKU.getQuantity());
 
@@ -475,7 +628,6 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 			addRequestId(requestId);
 
 			PurchaseData purchaseData = new PurchaseData(requestId);
-
 			purchaseData.setRequestState(RequestState.SENT);
 
 			savePurchaseData(purchaseData);
@@ -908,15 +1060,25 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		private String sku;
 		private int fulfilledQuantity;
 		private int consumedQuantity;
+		private int fulfilledCount;
 
 		public SKUData(String sku) {
 			this.sku = sku;
 			this.fulfilledQuantity = 0;
 			this.consumedQuantity = 0;
+			this.fulfilledCount = 0;
 		}
 
 		public String getSKU() {
 			return sku;
+		}
+
+		public void fulfilledCountUp() {
+			this.fulfilledCount++;
+		}
+
+		public void fulfilledCountDown() {
+			this.fulfilledCount--;
 		}
 
 		public void addFulfilledQuantity(int quantity) {
@@ -947,11 +1109,20 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 			this.consumedQuantity = this.consumedQuantity + quantity;
 		}
 
+		public int getFulfilledCount() {
+			return fulfilledCount;
+		}
+
+		public void setFulfilledCount(int fulfilledCount) {
+			this.fulfilledCount = fulfilledCount;
+		}
+
 		@Override
 		public String toString() {
 			return "SKUData [sku=" + sku + ", fulfilledQuantity="
 					+ fulfilledQuantity + ", consumedQuantity="
-					+ consumedQuantity + "]";
+					+ consumedQuantity + ", fulfilledCount=" + fulfilledCount
+					+ "]";
 		}
 
 	}
@@ -962,6 +1133,7 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 	protected static class SKUDataJSON {
 
 		private static final String SKU = "sku";
+		private static final String FULFILLED_COUNT = "fulfilledCount";
 		private static final String FULFILLED_QTY = "fulfilledQty";
 		private static final String CONSUMED_QTY = "consumedQty";
 
@@ -969,9 +1141,12 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		 * Serializes SKUData into JSON string.
 		 */
 		public static String toJSON(SKUData data) {
+			if (data == null)
+				return null;
 			JSONObject obj = new JSONObject();
 			try {
 				obj.put(SKU, data.getSKU());
+				obj.put(FULFILLED_COUNT, data.getFulfilledCount());
 				obj.put(FULFILLED_QTY, data.getFulfilledQuantity());
 				obj.put(CONSUMED_QTY, data.getConsumedQuantity());
 			} catch (JSONException e) {
@@ -986,13 +1161,17 @@ public class AppPurchasingObserver extends BasePurchasingObserver {
 		 * Deserializes JSON string back into SKUData object.
 		 */
 		public static SKUData fromJSON(String json) {
+			if (json == null)
+				return null;
 			JSONObject obj = null;
 			try {
 				obj = new JSONObject(json);
 				String sku = obj.getString(SKU);
+				int fulfilledCount = obj.getInt(FULFILLED_COUNT);
 				int fulfilledQuantity = obj.getInt(FULFILLED_QTY);
 				int consumedQuantity = obj.getInt(CONSUMED_QTY);
 				SKUData result = new SKUData(sku);
+				result.setFulfilledCount(fulfilledCount);
 				result.setFulfilledQuantity(fulfilledQuantity);
 				result.setConsumedQuantity(consumedQuantity);
 				// Log.i(TAG, "fromJSON: " + result);

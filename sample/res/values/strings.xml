@@ -14,5 +14,11 @@
     <string name="eat_orange">Eat Orange</string>
     <string name="i_ate">I ate</string>
     <string name="oranges_already">orange(s) already</string>
+    
+    <!--  -->
+    <string name="play_level2">Play Level 2</string>
+    <string name="buy_access_to_level2">Buy Access to Level 2</string>
+    <string name="level2_disabled">Level 2 Disabled</string>
+    <string name="level2_enabled">Level 2 Enabled</string>
 
 </resources>
