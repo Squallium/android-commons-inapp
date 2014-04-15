@@ -73,7 +73,8 @@ public class MainActivity extends AmazonInAppBilling {
 	 */
 	public void onBuyOrangeClick(View view) {
 		// Launch de purchase flow
-		purchase(InAppType.consumable, MySKU.ORANGE.getSku(), null);
+		purchase(InAppType.consumable, MySKU.ORANGE.getSku(),
+				mPurchaseFinishedListener);
 	}
 
 	/**
