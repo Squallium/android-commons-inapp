@@ -367,6 +367,12 @@ public class MainActivity extends GoogleInAppBilling {
 			setWaitScreen(false);
 		}
 
+		@Override
+		public void onPurchaseAlreadyEntitled(InAppResult arg0, String arg1) {
+			// TODO Auto-generated method stub
+			
+		}
+
 	};
 
 	// Called when consumption is complete

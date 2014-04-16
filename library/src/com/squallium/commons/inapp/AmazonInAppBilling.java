@@ -39,11 +39,15 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	// and purchase receipt data
 	private PurchaseDataStorage purchaseDataStorage;
 
+	private OnUserChangedListener onUserChangedListener;
+
 	private OnItemSkuAvailableListener onItemSkuAvailableListener;
 
 	private OnItemSkuUnavailableListener onItemSkuUnavailableListener;
 
-	private IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener;
+	private OnPurchaseFinishedListener onPurchaseFinishedListener;
+
+	private OnPurchaseUpdatesResponseListener onPurchaseUpdatesResponseListener;
 
 	// ===========================================================
 	// Constructors
@@ -97,11 +101,17 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	 * Callback for a successful get user id response
 	 * {@link GetUserIdResponseStatus#SUCCESSFUL}.
 	 * 
-	 * In this sample app, if the user changed from the previously stored user,
-	 * this method updates the display based on purchase data stored for the
-	 * user in SharedPreferences. The orange consumable is fulfilled if a stored
-	 * purchase token was found to NOT be fulfilled or if the SKU should be
-	 * fulfilled.
+	 * In this sample app (consumable), if the user changed from the previously
+	 * stored user, this method updates the display based on purchase data
+	 * stored for the user in SharedPreferences. The orange consumable is
+	 * fulfilled if a stored purchase token was found to NOT be fulfilled or if
+	 * the SKU should be fulfilled.
+	 * 
+	 * In this sample app (non-consumable), if the user changed from the
+	 * previously stored user, this method updates the display based on purchase
+	 * data stored for the user in SharedPreferences. The level 2 entitlement is
+	 * fulfilled if a stored purchase token was found to NOT be fulfilled or if
+	 * the SKU should be fulfilled.
 	 * 
 	 * @param userId
 	 *            returned from {@link GetUserIdResponse#getUserId()}.
@@ -110,8 +120,17 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	 */
 	@Override
 	public void onGetUserIdResponseSuccessful(String userId, boolean userChanged) {
-		Log.i(TAG,
-				"onGetUserIdResponseSuccessful: update display based on current userId");
+		Log.i(TAG, "onGetUserIdResponseSuccessful: update display if userId ("
+				+ userId + ") user changed from previous stored user ("
+				+ userChanged + ")");
+
+		if (!userChanged)
+			return;
+
+		// Callback to alert the change of the user
+		if (onUserChangedListener != null) {
+			onUserChangedListener.onUserChanged();
+		}
 
 		Set<String> requestIds = purchaseDataStorage.getAllRequestIds();
 		Log.i(TAG, "onGetUserIdResponseSuccessful: (" + requestIds.size()
@@ -204,6 +223,8 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	@Override
 	public void onItemDataResponseSuccessfulWithUnavailableSkus(
 			Set<String> unavailableSkus) {
+		Log.i(TAG, "onItemDataResponseSuccessfulWithUnavailableSkus: for ("
+				+ unavailableSkus.size() + ") unavailableSkus");
 		if (onItemSkuUnavailableListener != null) {
 			onItemSkuUnavailableListener.onItemSkuUnavailable(unavailableSkus);
 		}
@@ -254,6 +275,10 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		// This will not be called for consumables
 		Log.i(TAG, "onPurchaseResponseAlreadyEntitled: for userId (" + userId
 				+ ") sku (" + sku + ")");
+		// Call the callback if exists
+		if (onPurchaseFinishedListener != null) {
+			onPurchaseFinishedListener.onPurchaseAlreadyEntitled(null, sku);
+		}
 	}
 
 	/**
@@ -292,7 +317,8 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	}
 
 	/**
-	 * Callback on successful purchase updates response
+	 * Callback {@link PurchasingManager#initiatePurchaseUpdatesRequest} on
+	 * successful purchase updates response
 	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for each receipt.
 	 * 
 	 * @param userId
@@ -305,10 +331,15 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		// Not called for consumables
 		Log.i(TAG, "onPurchaseUpdatesResponseSuccess: for userId (" + userId
 				+ ") sku (" + sku + ") purchaseToken (" + purchaseToken + ")");
+		if (onPurchaseUpdatesResponseListener != null) {
+			onPurchaseUpdatesResponseListener.onPurchaseUpdatesSuccess(null,
+					sku, purchaseToken);
+		}
 	}
 
 	/**
-	 * Callback on successful purchase updates response
+	 * Callback {@link PurchasingManager#initiatePurchaseUpdatesRequest} on
+	 * successful purchase updates response
 	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for revoked SKU.
 	 * 
 	 * @param userId
@@ -319,11 +350,16 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 			String revokedSku) {
 		// Not called for consumables
 		Log.i(TAG, "onPurchaseUpdatesResponseSuccessRevokedSku: for userId ("
-				+ userId + ")");
+				+ userId + ") revokedSku (" + revokedSku + ")");
+		if (onPurchaseUpdatesResponseListener != null) {
+			onPurchaseUpdatesResponseListener.onPurchaseUpdatesRevokedSku(null,
+					revokedSku);
+		}
 	}
 
 	/**
-	 * Callback on failed purchase updates response
+	 * Callback {@link PurchasingManager#initiatePurchaseUpdatesRequest} on
+	 * failed purchase updates response
 	 * {@link PurchaseUpdatesRequestStatus#FAILED}
 	 * 
 	 * @param requestId
@@ -333,6 +369,10 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		// Not called for consumables
 		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
 				+ requestId + ")");
+		if (onPurchaseUpdatesResponseListener != null) {
+			onPurchaseUpdatesResponseListener.onPurchaseUpdatesFailed(null,
+					requestId);
+		}
 	}
 
 	/**
@@ -387,13 +427,12 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 		// Lanzamos el proceso de compra
 		switch (inAppType) {
 		case consumable:
+		case non_consumable:
 			String requestId = PurchasingManager.initiatePurchaseRequest(sku);
 			PurchaseData purchaseData = purchaseDataStorage
 					.newPurchaseData(requestId);
 			Log.i(TAG, "purchase: requestId (" + requestId + ") requestState ("
 					+ purchaseData.getRequestState() + ")");
-			break;
-		case non_consumable:
 			break;
 		case subscription:
 			break;
@@ -452,6 +491,24 @@ public abstract class AmazonInAppBilling extends InAppBilling implements
 	public void setOnPurchaseFinishedListener(
 			IInAppBilling.OnPurchaseFinishedListener onPurchaseFinishedListener) {
 		this.onPurchaseFinishedListener = onPurchaseFinishedListener;
+	}
+
+	public OnUserChangedListener getOnUserChangedListener() {
+		return onUserChangedListener;
+	}
+
+	public void setOnUserChangedListener(
+			OnUserChangedListener onUserChangedListener) {
+		this.onUserChangedListener = onUserChangedListener;
+	}
+
+	public OnPurchaseUpdatesResponseListener getOnPurchaseUpdatesResponseListener() {
+		return onPurchaseUpdatesResponseListener;
+	}
+
+	public void setOnPurchaseUpdatesResponseListener(
+			OnPurchaseUpdatesResponseListener onPurchaseUpdatesResponseListener) {
+		this.onPurchaseUpdatesResponseListener = onPurchaseUpdatesResponseListener;
 	}
 
 	// ===========================================================

@@ -69,7 +69,7 @@ public class MainActivity extends AmazonInAppBilling {
 	protected void setupIAPListeners() {
 		setOnItemSkuAvailableListener(mOnItemSkuAvailableListener);
 		setOnItemSkuUnavailableListener(mOnItemSkuUnavailableListener);
-		setOnPurchaseFinishedListener(mPurchaseFinishedListener);
+		setOnPurchaseFinishedListener(mOnPurchaseFinishedListener);
 	}
 
 	// ===========================================================
@@ -84,7 +84,7 @@ public class MainActivity extends AmazonInAppBilling {
 	 */
 	public void onBuyOrangeClick(View view) {
 		// Launch de purchase flow
-		purchase(InAppType.consumable, ORANGE, mPurchaseFinishedListener);
+		purchase(InAppType.consumable, ORANGE, mOnPurchaseFinishedListener);
 	}
 
 	/**
@@ -217,7 +217,9 @@ public class MainActivity extends AmazonInAppBilling {
 		}
 	};
 
-	IInAppBilling.OnPurchaseFinishedListener mPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+	IInAppBilling.OnPurchaseFinishedListener mOnPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+
+		@Override
 		public void onPurchaseSuccess(InAppResult inAppResult, String sku) {
 			SKUData skuData = getSKUData(sku);
 			if (ORANGE.equals(skuData.getSKU())) {
@@ -234,9 +236,15 @@ public class MainActivity extends AmazonInAppBilling {
 		}
 
 		@Override
+		public void onPurchaseAlreadyEntitled(InAppResult arg0, String arg1) {
+
+		}
+
+		@Override
 		public void onPurchaseFailed(InAppResult arg0, String arg1, String arg2) {
 
 		}
+
 	};
 
 }

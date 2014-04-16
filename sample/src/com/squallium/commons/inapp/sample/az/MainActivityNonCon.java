@@ -1,10 +1,7 @@
 package com.squallium.commons.inapp.sample.az;
 
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
-import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,19 +10,13 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.amazon.inapp.purchasing.GetUserIdResponse;
-import com.amazon.inapp.purchasing.GetUserIdResponse.GetUserIdRequestStatus;
-import com.amazon.inapp.purchasing.Item;
-import com.amazon.inapp.purchasing.ItemDataResponse.ItemDataRequestStatus;
-import com.amazon.inapp.purchasing.PurchaseResponse.PurchaseRequestStatus;
-import com.amazon.inapp.purchasing.PurchaseUpdatesResponse.PurchaseUpdatesRequestStatus;
 import com.amazon.inapp.purchasing.PurchasingManager;
+import com.squallium.commons.inapp.AmazonInAppBilling;
+import com.squallium.commons.inapp.IInAppBilling;
 import com.squallium.commons.inapp.InAppBillingManager;
 import com.squallium.commons.inapp.InAppBillingManager.Store;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseData;
-import com.squallium.commons.inapp.amazon.AppPurchasingObserver.PurchaseDataStorage;
 import com.squallium.commons.inapp.amazon.AppPurchasingObserverListener;
+import com.squallium.commons.inapp.amazon.MySKU;
 import com.squallium.commons.inapp.sample.R;
 
 /**
@@ -35,8 +26,7 @@ import com.squallium.commons.inapp.sample.R;
  * PurchasingManager methods and how to get notified through the
  * {@link AppPurchasingObserverListener} callbacks.
  */
-public class MainActivityNonCon extends Activity implements
-		AppPurchasingObserverListener {
+public class MainActivityNonCon extends AmazonInAppBilling {
 
 	// ===========================================================
 	// Constants
@@ -50,9 +40,13 @@ public class MainActivityNonCon extends Activity implements
 	// Fields
 	// ===========================================================
 
-	// Wrapper around SharedPreferences to save request state
-	// and purchase receipt data
-	private PurchaseDataStorage purchaseDataStorage;
+	private Handler guiThreadHandler;
+
+	// Button to buy entitlement to level 2
+	private Button buyLevel2Button;
+
+	// TextView shows whether user has been entitled to level 2
+	private TextView isLevel2EnabledTextView;
 
 	// ===========================================================
 	// Constructors
@@ -71,330 +65,25 @@ public class MainActivityNonCon extends Activity implements
 		super.onCreate(savedInstanceState);
 
 		setupApplicationSpecificOnCreate();
+	}
 
-		setupIAPOnCreate();
+	@Override
+	protected void setupIAPListeners() {
+		InAppBillingManager.getInstance(Store.amazon).addSku(
+				new MySKU(InAppType.consumable, LEVEL2));
+	}
+
+	@Override
+	protected void setupIAPSkus() {
+		setOnItemSkuAvailableListener(mOnItemSkuAvailableListener);
+		setOnItemSkuUnavailableListener(mOnItemSkuUnavailableListener);
+		setOnPurchaseFinishedListener(mOnPurchaseFinishedListener);
+		setOnPurchaseUpdatesResponseListener(mOnPurchaseUpdatesResponseListener);
 	}
 
 	// ===========================================================
 	// Methods
 	// ===========================================================
-
-	// ===========================================================
-	// Getter & Setter
-	// ===========================================================
-
-	// ===========================================================
-	// Inner and Anonymous Classes
-	// ===========================================================
-
-	/**
-	 * Setup for IAP SDK called from onCreate. Sets up
-	 * {@link PurchaseDataStorage} for storing purchase receipt data,
-	 * {@link AppPurchasingObserver} for listening to IAP API callbacks and sets
-	 * up this activity as a {@link AppPurchasingObserverListener} to listen for
-	 * callbacks from the {@link AppPurchasingObserver}.
-	 */
-	private void setupIAPOnCreate() {
-		purchaseDataStorage = new PurchaseDataStorage(this);
-
-		AppPurchasingObserver purchasingObserver = new AppPurchasingObserver(
-				this, purchaseDataStorage);
-		purchasingObserver.setListener(this);
-
-		Log.i(TAG, "onCreate: registering AppPurchasingObserver");
-		PurchasingManager.registerObserver(purchasingObserver);
-	}
-
-	/**
-	 * Calls {@link PurchasingManager#initiateGetUserIdRequest()} to get current
-	 * userId and {@link PurchasingManager#initiateItemDataRequest(Set)} with
-	 * the list of SKUs to verify the SKUs are valid in the Appstore.
-	 */
-	@Override
-	protected void onResume() {
-		super.onResume();
-
-		Log.i(TAG, "onResume: call initiateGetUserIdRequest");
-		PurchasingManager.initiateGetUserIdRequest();
-
-		Log.i(TAG, "onResume: call initiateItemDataRequest for skus: "
-				+ InAppBillingManager.getInstance(Store.amazon).getAllSkus());
-		PurchasingManager.initiateItemDataRequest(InAppBillingManager
-				.getInstance(Store.amazon).getAllSkus());
-	}
-
-	/**
-	 * Click handler called when user clicks button to buy access to level 2
-	 * entitlement. This method calls
-	 * {@link PurchasingManager#initiatePurchaseRequest(String)} with the SKU
-	 * for the level 2 entitlement.
-	 */
-	public void onBuyAccessToLevel2Click(View view) {
-		String requestId = PurchasingManager.initiatePurchaseRequest(LEVEL2);
-		PurchaseData purchaseData = purchaseDataStorage
-				.newPurchaseData(requestId);
-		Log.i(TAG, "onBuyAccessToLevel2Click: requestId (" + requestId
-				+ ") requestState (" + purchaseData.getRequestState() + ")");
-	}
-
-	/**
-	 * Callback for a successful get user id response
-	 * {@link GetUserIdResponseStatus#SUCCESSFUL}.
-	 * 
-	 * In this sample app, if the user changed from the previously stored user,
-	 * this method updates the display based on purchase data stored for the
-	 * user in SharedPreferences. The level 2 entitlement is fulfilled if a
-	 * stored purchase token was found to NOT be fulfilled or if the SKU should
-	 * be fulfilled.
-	 * 
-	 * @param userId
-	 *            returned from {@link GetUserIdResponse#getUserId()}.
-	 * @param userChanged
-	 *            - whether user changed from previously stored user.
-	 */
-	@Override
-	public void onGetUserIdResponseSuccessful(String userId, boolean userChanged) {
-		Log.i(TAG, "onGetUserIdResponseSuccessful: update display if userId ("
-				+ userId + ") user changed from previous stored user ("
-				+ userChanged + ")");
-
-		if (!userChanged)
-			return;
-
-		// Reset to original setting where level2 is disabled
-		disableLevel2InView();
-
-		Set<String> requestIds = purchaseDataStorage.getAllRequestIds();
-		Log.i(TAG, "onGetUserIdResponseSuccessful: (" + requestIds.size()
-				+ ") saved requestIds");
-		for (String requestId : requestIds) {
-			PurchaseData purchaseData = purchaseDataStorage
-					.getPurchaseData(requestId);
-			if (purchaseData == null) {
-				Log.i(TAG,
-						"onGetUserIdResponseSuccessful: could NOT find purchaseData for requestId ("
-								+ requestId + "), skipping");
-				continue;
-			}
-			if (purchaseDataStorage.isRequestStateSent(requestId)) {
-				Log.i(TAG,
-						"onGetUserIdResponseSuccessful: have not received purchase response for requestId still in SENT status: requestId ("
-								+ requestId + "), skipping");
-				continue;
-			}
-
-			Log.d(TAG, "onGetUserIdResponseSuccessful: requestId (" + requestId
-					+ ") " + purchaseData);
-
-			String purchaseToken = purchaseData.getPurchaseToken();
-			String sku = purchaseData.getSKU();
-			if (!purchaseData.isPurchaseTokenFulfilled()) {
-				Log.i(TAG, "onGetUserIdResponseSuccess: requestId ("
-						+ requestId + ") userId (" + userId + ") sku (" + sku
-						+ ") purchaseToken (" + purchaseToken
-						+ ") was NOT fulfilled, fulfilling purchase now");
-				onPurchaseResponseSuccess(userId, sku, purchaseToken);
-
-				purchaseDataStorage.setPurchaseTokenFulfilled(purchaseToken);
-				purchaseDataStorage.setRequestStateFulfilled(requestId);
-			} else {
-//				boolean shouldFulfillSKU = purchaseDataStorage
-//						.shouldFulfillSKU(sku);
-//				if (shouldFulfillSKU) {
-//					Log.i(TAG,
-//							"onGetUserIdResponseSuccess: should fulfill sku ("
-//									+ sku
-//									+ ") is true, so fulfilling purchasing now");
-//					onPurchaseUpdatesResponseSuccess(userId, sku, purchaseToken);
-//				}
-			}
-		}
-	}
-
-	/**
-	 * Callback for a failed get user id response
-	 * {@link GetUserIdRequestStatus#FAILED}
-	 * 
-	 * @param requestId
-	 *            returned from {@link GetUserIdResponsee#getRequestId()} that
-	 *            can be used to correlate with original request sent with
-	 *            {@link PurchasingManager#initiateGetUserIdRequest()}.
-	 */
-	@Override
-	public void onGetUserIdResponseFailed(String requestId) {
-		Log.i(TAG, "onGetUserIdResponseFailed for requestId (" + requestId
-				+ ")");
-	}
-
-	/**
-	 * Callback for successful item data response with unavailable SKUs
-	 * {@link ItemDataRequestStatus#SUCCESSFUL_WITH_UNAVAILABLE_SKUS}. This
-	 * means that these unavailable SKUs are NOT accessible in developer portal.
-	 * 
-	 * In this sample app, we disable the buy button for these SKUs.
-	 * 
-	 * @param unavailableSkus
-	 *            - skus that are not valid in developer portal
-	 */
-	@Override
-	public void onItemDataResponseSuccessfulWithUnavailableSkus(
-			Set<String> unavailableSkus) {
-		Log.i(TAG, "onItemDataResponseSuccessfulWithUnavailableSkus: for ("
-				+ unavailableSkus.size() + ") unavailableSkus");
-		disableButtonsForUnavailableSkus(unavailableSkus);
-	}
-
-	/**
-	 * Callback for successful item data response
-	 * {@link ItemDataRequestStatus#SUCCESSFUL} with item data
-	 * 
-	 * @param itemData
-	 *            - map of valid SKU->Items
-	 */
-	@Override
-	public void onItemDataResponseSuccessful(Map<String, Item> itemData) {
-		for (Entry<String, Item> entry : itemData.entrySet()) {
-			String sku = entry.getKey();
-			Item item = entry.getValue();
-			Log.i(TAG, "onItemDataResponseSuccessful: sku (" + sku + ") item ("
-					+ item + ")");
-			if (LEVEL2.equals(sku)) {
-				enableBuyLevel2Button();
-			}
-		}
-	}
-
-	/**
-	 * Callback for failed item data response
-	 * {@link ItemDataRequestStatus#FAILED}.
-	 * 
-	 * @param requestId
-	 */
-	public void onItemDataResponseFailed(String requestId) {
-		Log.i(TAG, "onItemDataResponseFailed: for requestId (" + requestId
-				+ ")");
-	}
-
-	/**
-	 * Callback on successful purchase response
-	 * {@link PurchaseRequestStatus#SUCCESSFUL}. In this sample app, we show
-	 * level 2 as enabled
-	 * 
-	 * @param sku
-	 */
-	@Override
-	public void onPurchaseResponseSuccess(String userId, String sku,
-			String purchaseToken) {
-		Log.i(TAG, "onPurchaseResponseSuccess: for userId (" + userId
-				+ ") sku (" + sku + ") purchaseToken (" + purchaseToken + ")");
-		enableEntitlementForSKU(sku);
-	}
-
-	/**
-	 * Callback when user is already entitled
-	 * {@link PurchaseRequestStatus#ALREADY_ENTITLED} to sku passed into
-	 * initiatePurchaseRequest.
-	 * 
-	 * @param userId
-	 */
-	@Override
-	public void onPurchaseResponseAlreadyEntitled(String userId, String sku) {
-		Log.i(TAG, "onPurchaseResponseAlreadyEntitled: for userId (" + userId
-				+ ") sku (" + sku + ")");
-		// For entitlements, even if already entitled, make sure to enable.
-		enableEntitlementForSKU(sku);
-	}
-
-	/**
-	 * Callback when sku passed into
-	 * {@link PurchasingManager#initiatePurchaseRequest} is not valid
-	 * {@link PurchaseRequestStatus#INVALID_SKU}.
-	 * 
-	 * @param userId
-	 * @param sku
-	 */
-	@Override
-	public void onPurchaseResponseInvalidSKU(String userId, String sku) {
-		Log.i(TAG, "onPurchaseResponseInvalidSKU: for userId (" + userId
-				+ ") sku (" + sku + ")");
-	}
-
-	/**
-	 * Callback on failed purchase response {@link PurchaseRequestStatus#FAILED}
-	 * .
-	 * 
-	 * @param requestId
-	 * @param sku
-	 */
-	@Override
-	public void onPurchaseResponseFailed(String requestId, String sku) {
-		Log.i(TAG, "onPurchaseResponseFailed: for requestId (" + requestId
-				+ ") sku (" + sku + ")");
-	}
-
-	/**
-	 * Callback on successful purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for each receipt.
-	 * 
-	 * In this sample app, we show level 2 as enabled.
-	 * 
-	 * @param userId
-	 * @param sku
-	 * @param purchaseToken
-	 */
-	@Override
-	public void onPurchaseUpdatesResponseSuccess(String userId, String sku,
-			String purchaseToken) {
-		Log.i(TAG, "onPurchaseUpdatesResponseSuccess: for userId (" + userId
-				+ ") sku (" + sku + ") purchaseToken (" + purchaseToken + ")");
-		enableEntitlementForSKU(sku);
-	}
-
-	/**
-	 * Callback on successful purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#SUCCESSFUL} for revoked SKU.
-	 * 
-	 * In this sample app, we revoke fulfillment if level 2 sku has been revoked
-	 * by showing level 2 as disabled
-	 * 
-	 * @param userId
-	 * @param revokedSKU
-	 */
-	@Override
-	public void onPurchaseUpdatesResponseSuccessRevokedSku(String userId,
-			String revokedSku) {
-		Log.i(TAG, "onPurchaseUpdatesResponseSuccessRevokedSku: for userId ("
-				+ userId + ") revokedSku (" + revokedSku + ")");
-		if (!LEVEL2.equals(revokedSku))
-			return;
-
-		Log.i(TAG,
-				"onPurchaseUpdatesResponseSuccessRevokedSku: disabling play level 2 button");
-		disableLevel2InView();
-
-		Log.i(TAG,
-				"onPurchaseUpdatesResponseSuccessRevokedSku: fulfilledCountDown for revokedSKU ("
-						+ revokedSku + ")");
-	}
-
-	/**
-	 * Callback on failed purchase updates response
-	 * {@link PurchaseUpdatesRequestStatus#FAILED}
-	 * 
-	 * @param requestId
-	 */
-	public void onPurchaseUpdatesResponseFailed(String requestId) {
-		Log.i(TAG, "onPurchaseUpdatesResponseFailed: for requestId ("
-				+ requestId + ")");
-	}
-
-	private Handler guiThreadHandler;
-
-	// Button to buy entitlement to level 2
-	private Button buyLevel2Button;
-
-	// TextView shows whether user has been entitled to level 2
-	private TextView isLevel2EnabledTextView;
 
 	/**
 	 * Setup application specific things, called from onCreate()
@@ -416,6 +105,17 @@ public class MainActivityNonCon extends Activity implements
 		isLevel2EnabledTextView.setText(R.string.level2_disabled);
 		isLevel2EnabledTextView.setTextColor(Color.GRAY);
 		isLevel2EnabledTextView.setBackgroundColor(Color.WHITE);
+	}
+
+	/**
+	 * Click handler called when user clicks button to buy access to level 2
+	 * entitlement. This method calls
+	 * {@link PurchasingManager#initiatePurchaseRequest(String)} with the SKU
+	 * for the level 2 entitlement.
+	 */
+	public void onBuyAccessToLevel2Click(View view) {
+		// Launch the purchase flow
+		purchase(InAppType.non_consumable, LEVEL2, mOnPurchaseFinishedListener);
 	}
 
 	/**
@@ -490,4 +190,91 @@ public class MainActivityNonCon extends Activity implements
 			}
 		});
 	}
+
+	// ===========================================================
+	// Getter & Setter
+	// ===========================================================
+
+	// ===========================================================
+	// Inner and Anonymous Classes
+	// ===========================================================
+
+	IInAppBilling.OnUserChangedListener mOnUserChangedListener = new OnUserChangedListener() {
+
+		@Override
+		public void onUserChanged() {
+			// Reset to original setting where level2 is disabled
+			disableLevel2InView();
+		}
+	};
+
+	IInAppBilling.OnItemSkuAvailableListener mOnItemSkuAvailableListener = new OnItemSkuAvailableListener() {
+
+		@Override
+		public void onItemSkuAvailable(String sku) {
+			if (LEVEL2.equals(sku)) {
+				enableBuyLevel2Button();
+			}
+		}
+	};
+
+	IInAppBilling.OnItemSkuUnavailableListener mOnItemSkuUnavailableListener = new OnItemSkuUnavailableListener() {
+
+		@Override
+		public void onItemSkuUnavailable(Set<String> unavailableSkus) {
+			disableButtonsForUnavailableSkus(unavailableSkus);
+		}
+	};
+
+	IInAppBilling.OnPurchaseFinishedListener mOnPurchaseFinishedListener = new IInAppBilling.OnPurchaseFinishedListener() {
+
+		@Override
+		public void onPurchaseSuccess(InAppResult inAppResult, String sku) {
+			enableEntitlementForSKU(sku);
+		}
+
+		@Override
+		public void onPurchaseAlreadyEntitled(InAppResult inAppResult,
+				String sku) {
+			// For entitlements, even if already entitled, make sure to enable.
+			enableEntitlementForSKU(sku);
+		}
+
+		@Override
+		public void onPurchaseFailed(InAppResult inAppResult, String sku,
+				String message) {
+
+		}
+	};
+
+	IInAppBilling.OnPurchaseUpdatesResponseListener mOnPurchaseUpdatesResponseListener = new OnPurchaseUpdatesResponseListener() {
+
+		@Override
+		public void onPurchaseUpdatesSuccess(InAppResult inAppResult,
+				String sku, String purchaseToken) {
+			enableEntitlementForSKU(sku);
+		}
+
+		@Override
+		public void onPurchaseUpdatesRevokedSku(InAppResult inAppResult,
+				String revokedSku) {
+			if (!LEVEL2.equals(revokedSku))
+				return;
+
+			Log.i(TAG,
+					"onPurchaseUpdatesResponseSuccessRevokedSku: disabling play level 2 button");
+			disableLevel2InView();
+
+			Log.i(TAG,
+					"onPurchaseUpdatesResponseSuccessRevokedSku: fulfilledCountDown for revokedSKU ("
+							+ revokedSku + ")");
+		}
+
+		@Override
+		public void onPurchaseUpdatesFailed(InAppResult inAppResult,
+				String requestId) {
+
+		}
+	};
+
 }
