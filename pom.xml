@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.squallium.androidcommons.inapp</groupId>
-    <artifactId>parent</artifactId>
+    <artifactId>Android-Commos-InApp</artifactId>
     <packaging>pom</packaging>
     <version>1.0.1</version>
 
