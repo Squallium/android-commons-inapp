@@ -314,7 +314,7 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 			if (result.isFailure()) {
 				message = "Error purchasing: " + result;
 			}
-			if (!verifyDeveloperPayload(purchase)) {
+			if (purchase != null && !verifyDeveloperPayload(purchase)) {
 				message = "Error purchasing. Authenticity verification failed.";
 			}
 
@@ -322,10 +322,10 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 			if (onPurchaseFinishedListener != null) {
 				if (message == null) {
 					onPurchaseFinishedListener.onPurchaseSuccess(inAppResult,
-							purchase.getSku());
+							purchase != null ? purchase.getSku() : "");
 				} else {
 					onPurchaseFinishedListener.onPurchaseFailed(inAppResult,
-							purchase.getSku(), message);
+							purchase != null ? purchase.getSku() : "", message);
 				}
 			}
 
