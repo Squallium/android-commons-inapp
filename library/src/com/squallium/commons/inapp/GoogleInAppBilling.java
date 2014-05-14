@@ -89,7 +89,8 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 				// IAB is fully set up. Now, let's get an inventory of stuff we
 				// own.
 				Log.d(TAG, "Setup successful. Querying inventory.");
-				mHelper.queryInventoryAsync(mGotInventoryListener);
+				mHelper.queryInventoryAsync(getQuerySkuDetails(),
+						mGotInventoryListener);
 			}
 		});
 	}
@@ -132,6 +133,16 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 			mHelper.dispose();
 			mHelper = null;
 		}
+	}
+
+	/**
+	 * Allow to disable de query sku details in case of your inapp items were
+	 * created with an old version of the developer console
+	 * 
+	 * @return
+	 */
+	protected boolean getQuerySkuDetails() {
+		return true;
 	}
 
 	protected abstract String getBase64EncodedPublicKey();
@@ -323,6 +334,10 @@ public abstract class GoogleInAppBilling extends InAppBilling {
 				if (message == null) {
 					onPurchaseFinishedListener.onPurchaseSuccess(inAppResult,
 							purchase != null ? purchase.getSku() : "");
+				} else if (result.getResponse() == 7) {
+					onPurchaseFinishedListener.onPurchaseAlreadyEntitled(
+							inAppResult, purchase != null ? purchase.getSku()
+									: "");
 				} else {
 					onPurchaseFinishedListener.onPurchaseFailed(inAppResult,
 							purchase != null ? purchase.getSku() : "", message);
