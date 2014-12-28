@@ -20,7 +20,7 @@
 		<dependency>
 			<groupId>android.support</groupId>
 			<artifactId>compatibility-v4</artifactId>
-			<version>19.0.1</version>
+			<version>21.0.3</version>
 		</dependency>
 		
 		<!-- Amazon Libraries -->
@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-			<version>2.2.4</version>
+			<version>2.3.1</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
