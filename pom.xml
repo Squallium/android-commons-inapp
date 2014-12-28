@@ -98,6 +98,7 @@
     <build>
         <finalName>${project.artifactId}</finalName>
         <sourceDirectory>src</sourceDirectory>
+        <outputDirectory>bin/classes</outputDirectory>
         <pluginManagement>
             <plugins>
                 <plugin>
