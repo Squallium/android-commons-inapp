@@ -60,9 +60,9 @@
 						<debug>false</debug>
 					</sign>
 					<proguard>
-						<skip>true</skip>
+						<skip>false</skip>
 					</proguard>
-					<proguardFile>proguard.cfg</proguardFile>
+					<proguardFile>proguard-project.txt</proguardFile>
 					<zipalign>
 						<skip>false</skip>
 						<verbose>true</verbose>
