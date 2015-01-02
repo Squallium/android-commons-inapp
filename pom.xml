@@ -51,6 +51,16 @@
 
     <distributionManagement>
         <repository>
+            <id>squallium-mvn-repo-releases</id>
+            <name>Squallium's Git based repo</name>
+            <url>https://github.com/squallium/squallium-mvn-repo/raw/master/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>squallium-mvn-repo-snapshots</id>
+            <name>Squallium's Git based repo</name>
+            <url>https://github.com/squallium/squallium-mvn-repo/raw/master/snapshots</url>
+        </snapshotRepository>
+        <repository>
             <id>libs-release-local</id>
             <name>androidmaven-releases</name>
             <url>http://artifactory.ci-server/artifactory/libs-release-local</url>
