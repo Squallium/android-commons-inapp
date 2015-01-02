@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.squallium.androidcommons.inapp</groupId>
-    <artifactId>Android-Commos-InApp</artifactId>
+    <artifactId>parent</artifactId>
     <packaging>pom</packaging>
-    <version>1.0.1</version>
+    <version>1.0.0</version>
 
     <name>Android Commons In-App Library (Parent)</name>
     <description>Library for unified the inapp process in Android</description>
@@ -49,28 +49,30 @@
         <url>https://github.com/Squallium/android-commons-inapp/issues</url>
     </issueManagement>
 
-    <distributionManagement>
+    <repositories>
         <repository>
             <id>squallium-mvn-repo-releases</id>
             <name>Squallium's Git based repo</name>
             <url>https://github.com/squallium/squallium-mvn-repo/raw/master/releases</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
-        <snapshotRepository>
+        <repository>
             <id>squallium-mvn-repo-snapshots</id>
             <name>Squallium's Git based repo</name>
             <url>https://github.com/squallium/squallium-mvn-repo/raw/master/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>libs-release-local</id>
-            <name>androidmaven-releases</name>
-            <url>http://artifactory.ci-server/artifactory/libs-release-local</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
         </repository>
-        <snapshotRepository>
-            <id>libs-snapshot-local</id>
-            <name>androidmaven-snapshots</name>
-            <url>http://artifactory.ci-server/artifactory/libs-snapshot-local</url>
-        </snapshotRepository>
-    </distributionManagement>
+    </repositories>
 
     <properties>
         <maven.compiler.version>3.1</maven.compiler.version>
@@ -94,7 +96,6 @@
         </profile>
     </profiles>
 
-    
     <dependencies>
         <dependency>
             <groupId>${android.group.id}</groupId>
@@ -103,7 +104,6 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>    
-
 
     <build>
         <finalName>${project.artifactId}</finalName>
