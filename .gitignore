@@ -12,6 +12,7 @@
 bin/
 gen/
 target/
+sample/src/
 
 # Local configuration file (sdk path, etc)
 local.properties

@@ -60,8 +60,9 @@
 						<debug>false</debug>
 					</sign>
 					<proguard>
-						<skip>false</skip>
+						<skip>true</skip>
 					</proguard>
+					<proguardFile>proguard.cfg</proguardFile>
 					<zipalign>
 						<skip>false</skip>
 						<verbose>true</verbose>
@@ -101,11 +102,11 @@
 							<type>apk</type>
 							<classifier>signed-aligned</classifier>
 						</artifact>
-						<artifact>
+						<!--<artifact>
 							<file>${project.build.directory}/proguard/mapping.txt</file>
 							<type>map</type>
 							<classifier>release</classifier>
-						</artifact>
+						</artifact>-->
 					</artifacts>
 				</configuration>
 				<executions>
